@@ -17,6 +17,61 @@ const HIDDEN_BUTTONS = ['playPause', 'restart', 'mute', 'settings', 'fullscreen'
   'volume', 'saveSavFiles', 'loadSavFiles', 'quickSave', 'quickLoad', 'screenshot', 'cacheManager', 'exitEmulation', 'netplay', 'diskButton', 'contextMenu'];
 
 let patched = false;
+
+/**
+ * Cadence des images : c'est PokéLink qui décide quand l'émulateur avance.
+ * - Le jeu continue quand la fenêtre n'est pas au premier plan : le navigateur suspend requestAnimationFrame
+ *   pour une page cachée, on le relaie alors par un minuteur tournant dans un Worker (non bridé), à 60 i/s.
+ * - La page se dit toujours « visible », sinon l'audio de l'émulateur s'arrête de lui-même.
+ * - Accélération : à chaque image affichée, l'émulateur calcule 1,5, 2, 3 ou 4 images du jeu (vraie vitesse ×N,
+ *   limitée seulement par la puissance de l'ordinateur).
+ * L'interface de PokéLink passe par appFrame() : elle n'est jamais accélérée.
+ */
+let background = false, emuSpeed = 1, acc = 0;
+export function setEmuSpeed(x) { emuSpeed = Math.max(1, Math.min(8, +x || 1)); acc = 0; }
+export let appFrame = cb => requestAnimationFrame(cb);
+export function keepRunningInBackground() {
+  if (background) return; background = true;
+  for (const [k, v] of [['hidden', false], ['visibilityState', 'visible'], ['webkitHidden', false]]) {
+    try { Object.defineProperty(document, k, { configurable: true, get: () => v }); } catch {}
+  }
+  const native = window.requestAnimationFrame.bind(window), cancel = window.cancelAnimationFrame.bind(window);
+  const waiting = new Map(); let next = 0, lastNative = performance.now(), lastEmu = 0;
+  const run = (id, t) => {
+    const f = waiting.get(id); if (!f) return;
+    if (f.app) { waiting.delete(id); cancel(f.nid); return f.cb(t); }
+    // émulateur : plusieurs images du jeu par image affichée en accéléré
+    acc += emuSpeed; let n = Math.max(1, Math.floor(acc)); acc -= n;
+    let cur = id;
+    for (let i = 0; i < n; i++) {
+      const g = waiting.get(cur); if (!g) break;
+      waiting.delete(cur); cancel(g.nid);
+      try { g.cb(t); } catch (e) { console.error(e); break; }
+      if (lastEmu === cur) break;                           // l'émulateur ne s'est pas relancé (pause)
+      cur = lastEmu;
+    }
+  };
+  const request = (cb, app) => {
+    const id = ++next;
+    const nid = native(t => { lastNative = performance.now(); run(id, t); });
+    waiting.set(id, { cb, nid, app });
+    if (!app) lastEmu = id;
+    return id;
+  };
+  window.requestAnimationFrame = cb => request(cb, false);
+  window.cancelAnimationFrame = id => { const f = waiting.get(id); if (f) { cancel(f.nid); waiting.delete(id); } };
+  appFrame = cb => request(cb, true);
+  try {
+    const src = 'setInterval(()=>postMessage(0),1000/60)';
+    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    w.onmessage = () => {
+      if (performance.now() - lastNative < 80 || !waiting.size) return;   // la page s'affiche : le vrai rAF suffit
+      const now = performance.now();
+      for (const id of [...waiting.keys()]) run(id, now);
+    };
+  } catch {}
+}
+
 /** L'image doit pouvoir être recopiée après le rendu : on garde le tampon WebGL (coût négligeable). */
 function keepDrawingBuffer() {
   if (patched) return; patched = true;
@@ -37,6 +92,7 @@ export class EmuHost {
   /** Démarre le jeu. save : octets de la sauvegarde du joueur (facultatif). */
   start(rom, name, save) {
     keepDrawingBuffer();
+    keepRunningInBackground();
     return new Promise((resolve, reject) => {
       const w = window;
       Object.assign(w, {
@@ -46,7 +102,9 @@ export class EmuHost {
         ...(this.ownInput ? { EJS_defaultControls: { 0: {}, 1: {}, 2: {}, 3: {} } } : {}),
         EJS_backgroundColor: '#000000', EJS_noAutoFocus: true,
         // DS : la souris est un stylet (position absolue sur l'écran du bas), pas un curseur relatif
-        EJS_defaultOptions: { desmume_pointer_type: 'touch', desmume_pointer_mouse: 'enabled', desmume_pointer_colour: 'white', melonds_touch_mode: 'Touch' },
+        EJS_defaultOptions: { desmume_pointer_type: 'touch', desmume_pointer_mouse: 'enabled', desmume_pointer_colour: 'white', melonds_touch_mode: 'Touch',
+          desmume_frameskip: String(this.options?.frameskip || 0) },
+        EJS_disableLocalStorage: true,      // réglages de l'émulateur : ceux de PokéLink uniquement (jamais d'anciens réglages gardés)
       });
       // La sauvegarde du joueur est posée dans le dossier des sauvegardes AVANT le chargement du jeu :
       // le cœur la trouve au démarrage, exactement comme une cartouche (pas de redémarrage, pas d'erreur de mémoire).
@@ -59,7 +117,7 @@ export class EmuHost {
         const GM = window.EJS_GameManager?.prototype;
         if (GM && !GM._plCfg) {
           const orig = GM.getRetroArchCfg; GM._plCfg = true;
-          GM.getRetroArchCfg = function () { return orig.call(this) + 'video_font_enable = false\nmenu_enable_widgets = false\nnotification_show_fast_forward = false\nnotification_show_autoconfig = false\nnotification_show_remap_load = false\nnotification_show_config_override_load = false\nnotification_show_save_state = false\n'; };
+          GM.getRetroArchCfg = function () { return orig.call(this).replace(/audio_latency = \d+/, 'audio_latency = 128') + 'audio_sync = true\naudio_rate_control = true\naudio_rate_control_delta = 0.005\n' + 'video_font_enable = false\nmenu_enable_widgets = false\nnotification_show_fast_forward = false\nnotification_show_autoconfig = false\nnotification_show_remap_load = false\nnotification_show_config_override_load = false\nnotification_show_save_state = false\n'; };
         }
         e.on('saveDatabaseLoaded', FS => {
           const dir = `/data/saves/${SAVE_DIR[this.core]}`;
@@ -93,6 +151,8 @@ export class EmuHost {
     for (const k of next) if (!this.keys.has(k) && RETRO[k] !== undefined) this.gm.simulateInput(0, RETRO[k], 1);
     this.keys = next;
   }
+  /** Option du cœur, appliquée en cours de partie (ex. desmume_frameskip). */
+  setCoreOption(k, v) { try { this.gm.setVariable(k, String(v)); } catch {} }
   /** Volume du jeu, de 0 à 1. */
   setVolume(v) {
     const e = this.ejs; if (!e) return;
@@ -102,15 +162,8 @@ export class EmuHost {
     // filet de sécurité : le gain des sources audio du cœur
     try { e.Module?.AL?.currentCtx?.sources?.forEach(src => (src.gain.gain.value = v)); } catch {}
   }
-  /** Vitesse du jeu : 1 = normale, 2 = deux fois plus vite… (avance rapide de RetroArch, plafonnée au ratio). */
-  setSpeed(x) {
-    const gm = this.gm; if (!gm) return;
-    this.speed = x > 1 ? x : 1;
-    try {
-      if (this.speed > 1) { gm.setFastForwardRatio(this.speed); gm.toggleFastForward(1); this.ejs.isFastForward = true; }
-      else { gm.toggleFastForward(0); this.ejs.isFastForward = false; }
-    } catch {}
-  }
+  /** Vitesse du jeu : 1 = normale, 2 = deux fois plus vite… (plusieurs images du jeu par image affichée). */
+  setSpeed(x) { this.speed = x > 1 ? x : 1; setEmuSpeed(this.speed); }
   /** Sauvegarde du jeu en .sav brut (lisible par tous les émulateurs et linkers). */
   exportSave() { const s = this.gm.getSaveFile(); return s ? rawSave(s) : null; }
 }

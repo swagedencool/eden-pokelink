@@ -9,6 +9,7 @@ import { InputRouter } from './input.js';
 import { icon } from './icons.js';
 import { InteractionMenu, RequestCard, TradePanel, VersusCard, ProfilePanel, RulesPanel, SettingsPanel, InvitePanel, Toasts, keycap, tap } from './ui.js';
 import { settings } from './settings.js';
+import { ScreenFilter } from './emu/screen.js';
 import { RoomRules } from './rules.js';
 import { BattleView } from './battle-ui.js';
 import { decodeParty, toBattleSet, withPartyHP, boxToParty, PARTY } from './pk4.js';
@@ -70,8 +71,9 @@ export class PokeLinkApp {
     this.wireInput();
     this.wireMouse();
     this.wireNet();
-    settings.on('change', () => { this.applySound(); if (this.turboOn) this.host?.setSpeed(settings.state.turboSpeed); this.refreshControls(); });
-    this.applySound();
+    settings.on('change', () => { this.applySound(); this.applyVideo(); if (this.turboOn) this.host?.setSpeed(settings.state.turboSpeed); this.refreshControls(); });
+    this._eco = !!settings.state.eco;
+    this.applySound(); this.applyVideo();
     this.refreshControls();
     if (Object.keys(this.me.profile.colors || {}).length) this.applyOwnPalette();
     net.send('hello', { profile: this.me.profile, team: this.teamSummary() });
@@ -90,6 +92,9 @@ export class PokeLinkApp {
     this.pingEl = h('span', {}, '—');
     this.rulesChip = h('span.pl-chip.rules');
     this.countEl = h('b', {}, '1');
+    // filtres d'image (WebGL) : l'écran du haut avec les amis, l'écran du bas seul
+    this.topScreen = new ScreenFilter(top, this.ovCanvas); this.topScreen.el.classList.add('px');
+    this.botScreen = new ScreenFilter(bottom);
     const chipBtn = (cls, title, ic, fn, label) => tap(h('span.pl-chip.btn' + cls, { title }, h('span.ic', { html: icon(ic, 15) }), label || null), fn);
     this.roomChip = tap(h('span.pl-chip.btn', { title: 'Inviter un ami dans la room' }, 'ROOM', h('b', {}, this.room)), () => this.openInvite());
     this.inviteChip = chipBtn('.invite', 'Envoyer le lien de la room à un ami', 'user-plus', () => this.openInvite(), h('span', {}, 'Inviter un ami'));
@@ -102,12 +107,17 @@ export class PokeLinkApp {
     this.saveMore = tap(h('span.more', { title: 'Plus d’options', html: icon('chevron-right', 14) }), () => this.toggleSaveMenu());
     this.saveMenu = h('div.pl-savemenu.glass', { hidden: true },
       tap(h('div.opt', {}, h('span.ic', { html: icon('download', 16) }), h('div', {}, h('b', {}, 'Sauvegarder'), h('small', {}, 'Télécharge ton fichier .sav, la partie continue'))), () => this.save(false)),
-      tap(h('div.opt.quit', {}, h('span.ic', { html: icon('door-open', 16) }), h('div', {}, h('b', {}, 'Sauvegarder et quitter'), h('small', {}, 'Télécharge ton fichier .sav puis quitte la room'))), () => this.save(true)));
+      tap(h('div.opt.quit', {}, h('span.ic', { html: icon('door-open', 16) }), h('div', {}, h('b', {}, 'Sauvegarder et quitter'), h('small', {}, 'Télécharge ton fichier .sav puis quitte la room'))), () => this.save(true)),
+      this.quitOpt = tap(h('div.opt.nosave', {}, h('span.ic', { html: icon('x', 16) }), h('div', {}, h('b', {}, 'Quitter sans sauvegarder'), h('small', {}, 'Ce que tu as fait depuis ta dernière sauvegarde est perdu'))), e => this.quitNoSave(e)));
     this.saveBtn = h('div.pl-save', {}, this.saveMain, this.saveMore, this.saveMenu);
-    document.addEventListener('click', () => this.toggleSaveMenu(false));
+    document.addEventListener('pointerdown', e => { if (!this.saveMenu.hidden && !e.target.closest?.('.pl-save')) this.toggleSaveMenu(false); }, true);
     const key = (action, t, fn) => tap(h('span.pl-key', { title: t }, h('kbd'), t), fn);
     this.keyEls = {
-      A: key('A', 'Interagir', () => this.promptPeer ? this.openMenu(this.promptPeer) : this.ui.toasts.show({ ic: 'users', title: 'Approche-toi d’un ami', sub: 'Mets-toi face à lui, puis clique sur la bulle « Interagir » ou sur lui', dur: 2400 })),
+      A: key('A', 'Interagir', () => {
+        const p = this.promptPeer || this.nearestPeer();
+        if (p) return this.openMenu(p);
+        this.ui.toasts.show({ ic: 'users', title: this.peers.size ? 'Ton ami est sur une autre carte' : 'Personne dans la room pour l’instant', sub: this.peers.size ? 'Clique sur lui dans la liste « Dans la room »' : 'Invite un ami avec le bouton « Inviter un ami »', dur: 2600 });
+      }),
       follower: key('follower', 'Pokémon', () => this.toggleFollower()),
       profile: key('profile', 'Profil', () => this.openProfile()),
       emote: key('emote', 'Émote', () => this.sendEmote('heart')),
@@ -121,9 +131,9 @@ export class PokeLinkApp {
         this.inviteChip, this.duoChip, this.rulesChip, h('span.pl-spacer'),
         this.saveBtn, this.turboChip, this.soundChip, this.settingsChip,
         h('span.pl-chip', { html: icon('wifi', 15), title: 'Latence avec la room' }, this.pingEl)),
-      this.gameEl = h('section.pl-game', {}, top, this.ovCanvas, this.domLayer, this.uiLayer),
+      this.gameEl = h('section.pl-game', {}, top, this.ovCanvas, this.topScreen.el, this.domLayer, this.uiLayer),
       h('aside.pl-side', {},
-        h('div.pl-bottom.glass-light', {}, bottom),
+        h('div.pl-bottom.glass-light', {}, bottom, this.botScreen.el),
         h('div.pl-room.glass-light', {}, h('h4', { html: icon('users', 14) + ' Dans la room' }), this.playersEl,
           h('div.pl-keys', {}, ...Object.values(this.keyEls)))));
     bottom.className = '';
@@ -159,20 +169,28 @@ export class PokeLinkApp {
   wireMouse() {
     // la bulle « Interagir » au-dessus d'un ami
     tap(this.overlay.prompt, () => this.promptPeer && !this.ui.active && this.openMenu(this.promptPeer));
-    // clic sur un ami dans le jeu : menu s'il est juste devant soi, sinon un conseil
-    this.gameEl.addEventListener('click', e => {
-      if (this.ui.active || e.target.closest('.pl-click, .glass')) return;
+    // clic sur un ami (son personnage ou son nom) : son menu s'ouvre, où qu'il soit sur la carte
+    const hit = e => {
       const r = this.gameEl.getBoundingClientRect(), k = r.width / 768;
       const x = (e.clientX - r.left) / k, y = (e.clientY - r.top) / k;
       let best = null, bd = 1e9;
       for (const p of this.peers.values()) {
+        if (p.map !== this.me.last?.map) continue;
         const a = this.overlay.screen.get(p.id); if (!a) continue;
-        const d = Math.hypot(x - a.x, (y - a.y) * 0.7);
-        if (d < 56 && d < bd) { bd = d; best = p; }
+        if (Math.abs(x - a.x) > 44 || y < a.y - 24 || y > a.feet + 12) continue;
+        const d = Math.abs(x - a.x) + Math.abs(y - (a.y + a.feet) / 2) * 0.5;
+        if (d < bd) { bd = d; best = p; }
       }
-      if (!best) return;
-      if (best === this.promptPeer) this.openMenu(best);
-      else this.ui.toasts.show({ profile: best.profile, title: `Approche-toi de ${best.profile.name}`, sub: 'Mets-toi juste en face pour interagir', dur: 2000 });
+      return best;
+    };
+    this.gameEl.addEventListener('click', e => {
+      if (this.ui.active || this.busy || e.target.closest('.pl-click, .glass:not(.pl-tag)')) return;
+      const p = hit(e);
+      if (p) { e.stopPropagation(); this.openMenu(p); }
+    });
+    this.gameEl.addEventListener('mousemove', e => {
+      const over = !this.ui.active && !e.target.closest('.glass:not(.pl-tag)') && hit(e);
+      this.gameEl.classList.toggle('pl-overpeer', !!over);
     });
   }
 
@@ -186,7 +204,8 @@ export class PokeLinkApp {
     n.on('hello', m => { const p = peer(m.from, m.profile); p.profile = m.profile; p.team = m.team; this.net.send('profile', { profile: this.me.profile, team: this.teamSummary() }); if (this.me.follower.out) this.sendFollower(true, true); });
     n.on('profile', m => this.onProfile(peer(m.from), m));
     n.on('state', m => peer(m.from).push(now(), m));
-    n.on('leave', m => { this.peers.delete(m.from); this.rules.forget(m.from); this.refreshSide(true); });
+    n.on('leave', m => { if (this.trade?.peer?.id === m.from && this.trade.panel && !this.trade.panel.closed) { this.trade.panel.close(); this.endTrade(); this.ui.toasts.show({ ic: 'circle-alert', title: 'Échange annulé', sub: 'Ton ami a quitté la room', dur: 2600 }); }
+      this.peers.delete(m.from); this.rules.forget(m.from); this.refreshSide(true); });
     n.on('rules', m => this.rules.receive(m));
     n.on('soul', m => this.rules.peerSoul(m.from, m));
     n.on('run-config', m => this.rules.fromRun(m.run));
@@ -200,11 +219,7 @@ export class PokeLinkApp {
     n.on('emote', m => this.overlay.bubble(m.from, m.kind, now()));
     n.on('req', m => this.onRequest(peer(m.from), m));
     n.on('res', m => this.onResponse(m));
-    n.on('trade', m => {
-      if (this.trade?.rid !== m.rid) return;
-      if (m.action === 'data') this.trade.incoming = Uint8Array.from(atob(m.raw), c => c.charCodeAt(0));
-      else this.trade.panel.remote(m);
-    });
+    n.on('trade', m => this.onTrade(m));
     n.on('battle', m => this.onBattle(m));
     n.on('ping', m => (this.pingEl.textContent = m.ms + ' ms'));
   }
@@ -222,6 +237,7 @@ export class PokeLinkApp {
 
   // ---------------------------------------------------------------- flux d'interaction
   openMenu(peer) {
+    if (this.ui.active || this.busy) return;
     const menu = new InteractionMenu(this.ui, peer, {
       onPick: (kind, m) => {
         if (kind === 'team') return this.showTeam(peer, m);
@@ -275,17 +291,15 @@ export class PokeLinkApp {
       peer, mine: this.me.team.map(m => ({ ...m })), theirs: (peer.team || []).map(m => ({ ...m })),
       onPick: (slot, what) => this.net.send('trade', { rid, to: peer.id, action: what === 'cursor' ? 'cursor' : slot === null ? 'unpick' : 'pick', slot }),
       onConfirm: () => {
-        // les données du Pokémon (format de boîte, 136 octets) partent vers l'ami au moment de la confirmation
-        const mon = this.me.team[panel.pick];
-        const raw = this.game.readPartyRaw?.().subarray(4 + mon.slot * PARTY.size, 4 + mon.slot * PARTY.size + 136);
-        if (raw) this.net.send('trade', { rid, to: peer.id, action: 'data', raw: btoa(String.fromCharCode(...raw)) });
-        this.net.send('trade', { rid, to: peer.id, action: 'confirm' });
+        // les données du Pokémon (format de boîte, 136 octets) partent avec la confirmation, dans le même message
+        this.trade.raw = this.tradeRaw(panel.pick);
+        this.net.send('trade', { rid, to: peer.id, action: 'confirm', slot: panel.pick, raw: this.trade.raw });
       },
-      onCancel: () => { this.net.send('trade', { rid, to: peer.id, action: 'cancel' }); this.trade = null; },
+      onCancel: () => { this.net.send('trade', { rid, to: peer.id, action: 'cancel' }); this.endTrade(); },
     });
     panel.onDone = mon => {
       const given = this.me.team[panel.pick], incoming = this.trade?.incoming;
-      this.trade = null;
+      this.endTrade();
       if (incoming && this.game.writePartyMon) {
         this.game.writePartyMon(given.slot, boxToParty(incoming, this.gd)); // le Pokémon reçu prend la place dans l'équipe du jeu
         this.refreshTeam();
@@ -293,8 +307,45 @@ export class PokeLinkApp {
       this.ui.toasts.show({ species: mon.species, accent: 'var(--c-trade)', title: `${mon.name} a rejoint ton équipe !`, sub: `Échange terminé avec ${peer.profile.name} · enregistré dans ta partie` });
       this.refreshSide(true);
     };
-    this.trade = { rid, panel };
+    this.trade = { rid, panel, peer, raw: null, incoming: null };
     this.ui.open(panel);
+    // état complet renvoyé chaque seconde : un message perdu ne peut plus bloquer l'échange
+    this.trade.sync = setInterval(() => {
+      if (panel.closed) return this.endTrade(rid);
+      const busy = panel.phase === 'swap' || panel.phase === 'done';
+      this.net.send('trade', { rid, to: peer.id, action: 'state', pick: panel.pick, cur: panel.cur,
+        confirmed: panel.confirmed || busy, raw: panel.confirmed || busy ? this.trade?.raw : undefined });
+    }, 1000);
+    for (const m of this.tradeEarly?.get(rid) || []) this.onTrade(m);   // messages arrivés avant l'ouverture de la fenêtre
+    this.tradeEarly?.delete(rid);
+  }
+  tradeRaw(slot) {
+    const mon = this.me.team[slot];
+    const raw = mon && this.game.readPartyRaw?.()?.subarray(4 + mon.slot * PARTY.size, 4 + mon.slot * PARTY.size + 136);
+    return raw ? btoa(String.fromCharCode(...raw)) : null;
+  }
+  endTrade(rid) {
+    if (!this.trade || (rid && this.trade.rid !== rid)) return;
+    clearInterval(this.trade.sync);
+    this.trade = null;
+  }
+  onTrade(m) {
+    if (this.trade?.rid !== m.rid || !this.trade.panel) {
+      // la fenêtre n'est pas encore ouverte (l'autre joueur a été plus rapide) : on garde le message
+      if (!this.tradeEarly) this.tradeEarly = new Map();
+      const q = this.tradeEarly.get(m.rid) || []; if (q.length < 64) q.push(m); this.tradeEarly.set(m.rid, q);
+      setTimeout(() => this.tradeEarly?.delete(m.rid), 15000);
+      return;
+    }
+    const t = this.trade;
+    if (m.raw && (m.action === 'data' || m.action === 'confirm' || m.action === 'state')) t.incoming = Uint8Array.from(atob(m.raw), c => c.charCodeAt(0));
+    if (m.action === 'data') return;
+    if (m.action === 'cancel') {
+      t.panel.settled = true; t.panel.close(); this.endTrade();
+      this.ui.toasts.show({ profile: t.peer.profile, title: `${t.peer.profile.name} a annulé l'échange`, dur: 2400 });
+      return;
+    }
+    t.panel.remote(m);
   }
   refreshTeam() {
     if (this.game.readPartyRaw) this.me.team = decodeParty(this.game.readPartyRaw(), this.gd);
@@ -388,7 +439,30 @@ export class PokeLinkApp {
     if (this.rulesPanel && !this.rulesPanel.closed) this.rulesPanel.refresh();
   }
 
+  /** L'ami le plus proche sur la même carte (pour le bouton « Interagir »). */
+  nearestPeer() {
+    const l = this.me.last; let best = null, bd = 1e9;
+    for (const p of this.peers.values()) {
+      if (!l || p.map !== l.map) continue;
+      const d = Math.abs(p.tx - l.tx) + Math.abs(p.tz - l.tz);
+      if (d < bd) { bd = d; best = p; }
+    }
+    return best;
+  }
+  /** Quitter sans sauvegarder : un second clic confirme. */
+  quitNoSave(e) {
+    e?.stopPropagation();
+    if (!this.quitArmed) {
+      this.quitArmed = true; this.quitOpt.classList.add('armed');
+      this.quitOpt.querySelector('b').textContent = 'Clique encore pour quitter';
+      clearTimeout(this.quitT); this.quitT = setTimeout(() => this.disarmQuit(), 4000);
+      return;
+    }
+    this.onQuit ? this.onQuit() : (location.href = 'index.html');
+  }
+  disarmQuit() { this.quitArmed = false; this.quitOpt.classList.remove('armed'); this.quitOpt.querySelector('b').textContent = 'Quitter sans sauvegarder'; }
   toggleSaveMenu(open = this.saveMenu.hidden) {
+    if (!open && this.quitArmed) this.disarmQuit();
     this.saveMenu.hidden = !open;
     this.saveBtn.classList.toggle('open', open);
   }
@@ -418,10 +492,17 @@ export class PokeLinkApp {
   setTurbo(on) {
     this.turboOn = !!on;
     this.host?.setSpeed(on ? settings.state.turboSpeed : 1);
+    this.applySound();
     this.refreshControls();
     this.ui.toasts.show({ ic: 'fast-forward', accent: '#fbbf24', title: on ? `Jeu accéléré ×${String(settings.state.turboSpeed).replace('.', ',')}` : 'Vitesse normale', sub: `Touche ${settings.label('turbo')} pour ${on ? 'revenir à la normale' : 'accélérer'}`, dur: 1600 });
   }
-  applySound() { this.host?.setVolume(settings.effectiveVolume); }
+  applySound() { this.host?.setVolume(this.turboOn && !settings.state.turboSound ? 0 : settings.effectiveVolume); }
+  /** Image : filtre d'agrandissement, économie (une image sur deux dessinée). */
+  applyVideo() {
+    const st = settings.state;
+    this.topScreen.setMode(st.filter); this.botScreen.setMode(st.filter);
+    if (this._eco !== st.eco) { this._eco = st.eco; this.host?.setCoreOption('desmume_frameskip', st.eco ? 1 : 0); }
+  }
   /** Puces de l'en-tête et touches affichées : suivent les réglages (touches choisies, son, turbo). */
   refreshControls() {
     const st = settings.state, vol = settings.effectiveVolume;
@@ -494,6 +575,7 @@ export class PokeLinkApp {
     this.ui.update(now);
     if (s) this.render(now, s);
     else if (this.overlay._vis !== 0) { this.overlay._vis = 0; this.ovCanvas.style.opacity = 0; this.domLayer.style.opacity = 0; } // transition : rien à afficher
+    this.topScreen.present(); this.botScreen.present();
     if (++this.frame % 8 === 0) this.refreshSide();
     if (this.frame % 20 === 0) this.rules.tick();
     if (this.frame % 6 === 0) this.updateAmbient();
@@ -534,11 +616,11 @@ export class PokeLinkApp {
     if (!force && sig === this._sideSig) return;
     this._sideSig = sig;
     this.countEl.textContent = rows.length;
-    this.playersEl.replaceChildren(...rows.map(r => h('div.pl-player', {},
+    this.playersEl.replaceChildren(...rows.map(r => (r.me ? (x => x) : x => tap(x, () => { const p = this.peers.get(r.id); if (p && !this.ui.active) this.openMenu(p); }))(h('div.pl-player', { title: r.me ? null : `Proposer un échange, un combat… à ${r.profile.name}` },
       this.ui.portrait(r.profile, 44),
       h('div.who', {},
         h('div.name', {}, h('span.nm', {}, r.profile.name), r.me ? h('span.you', {}, 'TOI') : null, this.duo.has(r.id) ? h('span', { style: { color: 'var(--c-duo)' }, html: icon('link-2', 14) }) : null),
         h('div.where', { html: icon('map-pin', 12) + (r.map !== undefined ? this.placeName(r.map) : '—') + (r.dist !== null && r.dist !== undefined ? ` · ${r.dist} pas` : '') })),
-      r.follower?.out ? this.ui.mon(r.follower.species) : null)));
+      r.follower?.out ? this.ui.mon(r.follower.species) : null))));
   }
 }

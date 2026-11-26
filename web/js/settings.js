@@ -22,7 +22,7 @@ export const DEFAULT_KEYS = {
   follower: 'KeyP', profile: 'KeyC', emote: 'KeyE', rules: 'KeyR', turbo: 'Space', invite: 'KeyI', settings: 'KeyO',
 };
 export const SPEEDS = [1.5, 2, 3, 4];
-const DEFAULTS = { keys: DEFAULT_KEYS, volume: 0.6, muted: false, turboSpeed: 2 };
+const DEFAULTS = { keys: DEFAULT_KEYS, volume: 0.6, muted: false, turboSpeed: 2, turboSound: false, filter: 'net', eco: false };
 const STORE = 'pokelink.settings';
 
 // Noms lisibles des touches. Sur Chrome et Edge, la disposition réelle du clavier (AZERTY…) est utilisée.

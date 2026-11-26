@@ -5,6 +5,7 @@ import { h, ease, setTO, clamp } from './core.js';
 import { icon } from './icons.js';
 import { COLOR_SLOTS } from './rom.js';
 import { settings, ACTIONS, SPEEDS, keyName } from './settings.js';
+import { FILTERS } from './emu/screen.js';
 
 const KIND = {
   battle: { label: 'Combattre', sub: 'Défier en combat', accent: 'var(--c-battle)', icon: 'swords' },
@@ -59,7 +60,7 @@ export class InteractionMenu extends Panel {
     const emotes = h('div.pl-emotes', { style: { display: 'none' } }, EMOTES.map(e => h('div.e', { html: icon(e, 20) })));
     const el = h('div.pl-menu.glass', {},
       h('header', {}, ui.portrait(peer.profile, 44),
-        h('div', {}, h('div.t', {}, peer.profile.name), h('small', { html: icon('map-pin', 12) + ui.app.placeName(peer.map) + ' · à 1 pas' }))),
+        h('div', {}, h('div.t', {}, peer.profile.name), h('small', { html: icon('map-pin', 12) + ui.app.placeName(peer.map) + (() => { const l = ui.app.me.last; if (!l || l.map !== peer.map) return ''; const d = Math.abs(peer.tx - l.tx) + Math.abs(peer.tz - l.tz); return d ? ` · à ${d} pas` : ''; })() }))),
       list, emotes,
       h('div.pl-hints', {}, tap(hint('A', 'Choisir'), () => this.nav('A')), tap(hint('B', 'Fermer'), () => this.nav('B'))));
     super(ui, el);
@@ -189,6 +190,14 @@ export class TradePanel extends Panel {
   }
   close() { this.ui.anim.tween({ from: { o: 1 }, to: { o: 0 }, dur: 200, apply: v => (this.bg.style.opacity = v.o), done: () => this.bg.remove() }); return super.close(200); }
   remote(ev) {
+    if (this.phase === 'done' || this.phase === 'swap') return;
+    if (ev.action === 'state') {                          // état complet de l'ami (renvoyé chaque seconde)
+      if (ev.cur !== undefined && ev.cur !== null) this.rcur = ev.cur;
+      this.rpick = ev.pick ?? null;
+      this.rconfirmed = !!ev.confirmed && this.rpick !== null;
+      this.refresh(); this.maybeSwap(); return;
+    }
+    if (ev.action === 'confirm' && ev.slot !== undefined && ev.slot !== null) this.rpick = ev.slot;
     if (ev.action === 'cursor') this.rcur = ev.slot;
     if (ev.action === 'pick') this.rpick = ev.slot;
     if (ev.action === 'unpick') { this.rpick = null; this.rconfirmed = false; }
@@ -494,11 +503,11 @@ export class RulesPanel extends Panel {
 /** Réglages : son, vitesse du jeu et touches. Pensé pour la souris (tout est cliquable), Échap ferme. */
 export class SettingsPanel extends Panel {
   constructor(ui, { turbo, onTurbo, capture }) {
-    const tabs = h('div.pl-tabs', {}, h('span', {}, h('span', { html: icon('volume-2', 15) }), 'Son et vitesse'), h('span', {}, h('span', { html: icon('keyboard', 15) }), 'Touches'));
+    const tabs = h('div.pl-tabs', {}, h('span', {}, h('span', { html: icon('volume-2', 15) }), 'Son & vitesse'), h('span', {}, h('span', { html: icon('sparkles', 15) }), 'Image'), h('span', {}, h('span', { html: icon('keyboard', 15) }), 'Touches'));
     const body = h('div.pl-set-body');
     const el = h('div.pl-settings.glass', {},
       h('div.head', {}, h('span.hic', { html: icon('settings', 22) }),
-        h('div', {}, h('h3', {}, 'Réglages'), h('small', {}, 'Gardés dans ce navigateur, pour toutes tes parties')), tabs),
+        h('div', {}, h('h3', {}, 'Réglages'), h('small', {}, 'Gardés dans ce navigateur')), tabs),
       body,
       h('div.foot', {}, h('small.pl-set-msg'), h('span.pl-btn', {}, 'Fermer')));
     super(ui, el);
@@ -513,7 +522,7 @@ export class SettingsPanel extends Panel {
   render() {
     if (this.closed) return;
     [...this.tabs.children].forEach((t, i) => t.classList.toggle('on', i === this.tab));
-    this.body.replaceChildren(this.tab === 0 ? this.general() : this.keys());
+    this.body.replaceChildren(this.tab === 0 ? this.general() : this.tab === 1 ? this.video() : this.keys());
   }
   general() {
     const st = settings.state, vol = Math.round(st.volume * 100);
@@ -540,7 +549,21 @@ export class SettingsPanel extends Panel {
       h('div.pl-rule', {}, h('span.ic', { html: icon('fast-forward', 18) }),
         h('div.txt', {}, h('b', {}, 'Accélérer le jeu'), h('small', {}, `Touche ${settings.label('turbo')} pour l’activer ou le couper en jeu. Tes amis ne sont pas accélérés.`)), sw),
       h('div.pl-rule.sub', {}, h('div.txt', {}, h('b', {}, 'Vitesse en accéléré'), h('small', {}, 'Si ton ordinateur n’arrive pas à suivre, le jeu va aussi vite qu’il peut')), speeds),
+      h('div.pl-rule.sub', {}, h('div.txt', {}, h('b', {}, 'Son pendant l’accélération'), h('small', {}, 'Coupé par défaut : le son accéléré grésille')),
+        tap(h('span.pl-switch' + (st.turboSound ? '.on' : ''), {}, h('i')), () => settings.set({ turboSound: !st.turboSound }))),
       h('div.pl-tip', { html: icon('mouse-pointer-click', 16) + '<span>Astuce : tout se fait à la souris. Clique sur un ami dans le jeu (la bulle « Interagir ») ou sur les boutons à droite.</span>' }));
+  }
+  video() {
+    const st = settings.state;
+    const cards = h('div.pl-filters', {}, FILTERS.map(f => tap(h('div.pl-filter' + (st.filter === f.id ? '.on' : ''), {},
+      h('div.pv.' + f.id), h('b', {}, f.label), h('small', {}, f.sub)), () => settings.set({ filter: f.id }))));
+    const sw = (on, fn) => tap(h('span.pl-switch' + (on ? '.on' : ''), {}, h('i')), fn);
+    return h('div.rows', {},
+      h('div.pl-rule', {}, h('span.ic', { html: icon('sparkles', 18) }), h('div.txt', {}, h('b', {}, 'Rendu de l’image'), h('small', {}, 'S’applique tout de suite, aux deux écrans'))),
+      cards,
+      h('div.pl-rule', {}, h('span.ic', { html: icon('gauge', 18) }),
+        h('div.txt', {}, h('b', {}, 'Mode économie'), h('small', {}, 'Dessine une image sur deux : à essayer si le son grésille ou si le jeu rame')),
+        sw(st.eco, () => settings.set({ eco: !st.eco }))));
   }
   keys() {
     const col = (title, group) => h('div.pl-keycol', {}, h('h4', {}, title),
@@ -567,7 +590,7 @@ export class SettingsPanel extends Panel {
   say(t) { this.msg.textContent = t; clearTimeout(this.msgT); this.msgT = setTimeout(() => (this.msg.textContent = ''), 4000); }
   nav(k) {
     if (k === 'B') { this.off?.(); this.close(); return true; }
-    if (k === 'LEFT' || k === 'RIGHT') { this.tab = k === 'LEFT' ? 0 : 1; this.render(); }
+    if (k === 'LEFT' || k === 'RIGHT') { this.tab = Math.max(0, Math.min(2, this.tab + (k === 'LEFT' ? -1 : 1))); this.render(); }
     return true;
   }
 }

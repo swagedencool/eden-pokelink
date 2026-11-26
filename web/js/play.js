@@ -6,7 +6,7 @@ import { mountInfoTab } from './info-tab.js';
 import { P2PRoom } from './p2p.js';
 import { loadRom, saveRom } from './store.js';
 import { detectRom, sizeLabel } from './atelier/games.js';
-import { EmuHost } from './emu/host.js';
+import { EmuHost, appFrame } from './emu/host.js';
 import { settings } from './settings.js';
 import { PlatinumGame } from './emu/platinum.js';
 import { NdsRom, loadAssets } from './rom.js';
@@ -121,6 +121,7 @@ async function start() {
     loading('Démarrage du jeu…', 'Le premier lancement télécharge l’émulateur (quelques secondes).');
     const host = new EmuHost({ mount: '#emu', platform: r.info.platform, ownInput: !!LIVE[r.info.code] });
     host.volume = settings.effectiveVolume;
+    host.options = { frameskip: settings.state.eco ? 1 : 0 };
     await host.start(r.bytes, `${r.info.name}.${r.info.platform}`, save ? new Uint8Array(save) : null);
     loading();
     host.setVolume(settings.effectiveVolume);
@@ -185,6 +186,7 @@ function startLive(host, net, joined, save) {
     profile: { name: trainer, base, colors: JSON.parse(localStorage.getItem('pokelink.colors') || '{}'), buddy: team[0]?.species || 392 } });
   window.PL = { app, host, game };
   app.onSave = quit => saveGame(host, quit, trainer);
+  app.onQuit = () => { S.leaving = true; location.href = 'index.html'; };
   // quitter par erreur (fermer l'onglet, recharger) : le navigateur demande confirmation
   addEventListener('beforeunload', e => { if (!S.leaving) { e.preventDefault(); e.returnValue = ''; } });
   const fit = () => { const k = Math.min(innerWidth / 1280, innerHeight / 720); root.style.transform = `scale(${k})`; };
@@ -203,9 +205,9 @@ function startLive(host, net, joined, save) {
       const sig = raw ? raw.subarray(0, 4 + 6 * 8).join(',') : '';
       if (raw && sig !== lastTeam) { lastTeam = sig; app.refreshTeam?.(); }
     }
-    requestAnimationFrame(loop);
+    appFrame(loop);
   };
-  requestAnimationFrame(loop);
+  appFrame(loop);
 }
 
 /** Écran tactile : la souris (ou le doigt) sur l'écran du bas de PokéLink sert de stylet pour l'émulateur.

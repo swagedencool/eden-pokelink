@@ -31,7 +31,11 @@ export class PlatinumGame {
     this.romTail = romBytes.slice(0x4000, 0x4040);
     const mk = () => Object.assign(document.createElement('canvas'), { width: 256, height: 192 });
     this.topCanvas = mk(); this.bottomCanvas = mk();
-    this.botCtx = this.bottomCanvas.getContext('2d', { willReadFrequently: true });
+    this.botCtx = this.bottomCanvas.getContext('2d');
+    // les points de contrôle du Pokétch sont lus sur une petite copie (une seule lecture, une image sur trois)
+    this.probeCanvas = Object.assign(document.createElement('canvas'), { width: 256, height: 192 });
+    this.probeCtx = this.probeCanvas.getContext('2d', { willReadFrequently: true });
+    this.frameN = 0;
     this.topCtx = this.topCanvas.getContext('2d');
     this.botCtx.imageSmoothingEnabled = this.topCtx.imageSmoothingEnabled = false;
     this.base = -1; this.romBase = -1; this.obj = 0; this.mirror = new PartyMirror(); this.pending = new Map();
@@ -59,14 +63,18 @@ export class PlatinumGame {
     const c = this.host.canvas;
     if (!c || !c.width) return;
     const half = c.height / 2;
-    this.topCtx.drawImage(c, 0, 0, c.width, half, 0, 0, 256, 192);
+    // l'écran du haut suit la résolution de l'émulateur (3D HD : 512 × 384 et plus)
+    if (this.topCanvas.width !== c.width || this.topCanvas.height !== half) { this.topCanvas.width = c.width; this.topCanvas.height = half; this.topCtx.imageSmoothingEnabled = false; }
+    this.topCtx.drawImage(c, 0, 0, c.width, half, 0, 0, c.width, half);
     this.botCtx.drawImage(c, 0, half, c.width, half, 0, 0, 256, 192);
-    this.probe();
+    if (this.frameN++ % 3 === 0) this.probe();
     this._st = undefined;                                     // état relu une fois par image
   }
   probe() {
     // Chaque point du cadre doit avoir sa couleur d'origine, assombrie du même facteur partout (fondu au noir).
-    const px = POKETCH_PROBES.map(([x, y]) => this.botCtx.getImageData(x, y, 1, 1).data);
+    this.probeCtx.drawImage(this.bottomCanvas, 0, 0);
+    const all = this.probeCtx.getImageData(0, 0, 256, 192).data;
+    const px = POKETCH_PROBES.map(([x, y]) => all.subarray((y * 256 + x) * 4, (y * 256 + x) * 4 + 4));
     const ks = POKETCH_PROBES.map(([, , r, g, b], i) => (px[i][0] + px[i][1] + px[i][2] + 1) / (r + g + b + 1));
     const k = ks.reduce((a, v) => a + v, 0) / ks.length;
     const consistent = Math.max(...ks) - Math.min(...ks) < 0.2 && k > 0.06 && k < 1.15;
