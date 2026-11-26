@@ -1,0 +1,16 @@
+# Jamais de jeux ni de sauvegardes dans le dépôt
+*.nds
+*.sav
+*.dsv
+*.srm
+*.gb
+*.gbc
+*.gba
+*.zip
+web/_local/
+dist/
+node_modules/
+server/upr/src-upr/
+server/upr/build/
+*.class
+__pycache__/

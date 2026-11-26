@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>p2p-test</title></head>
+<body>
+<script type="module">
+  // Banc de test des rooms sans serveur : deux onglets, transport local (BroadcastChannel), combat simulé dans l'un des deux.
+  import { P2PRoom } from '../js/p2p.js';
+  const q = new URLSearchParams(location.search), name = q.get('name');
+  const room = new P2PRoom({ mode: 'local' });
+  const got = [];
+  window.T = { room, got, ready: false };
+  for (const t of ['hello', 'state', 'rules', 'soul', 'run-config', 'battle', 'leave', 'ping', 'follower']) room.on(t, m => got.push(m));
+  const j = await room.connect('', q.get('code') ? 'join' : 'create', q.get('code'));
+  T.code = j.code; T.id = j.id;
+  room.send('hello', { profile: { name }, team: [] });
+  room.send('follower', { out: true, species: name === 'A' ? 392 : 393 });
+  if (name === 'A') { room.send('rules', { rules: { soulLink: true, levelCap: true, capMode: 'auto', capValue: 50 }, by: 'A' }); room.send('run-config', { run: { seed: '123', game: 'CPUF' } }); }
+  setInterval(() => room.send('state', { map: 3, x: 1, y: 0, z: 2, face: 1, tx: 0, tz: 0 }), 200);
+  // combat : chacun envoie son équipe quand on le lui demande ; choix automatiques
+  T.fight = (rid, opponent, team, seed) => room.send('battle-team', { rid, team, name, opponent, seed });
+  room.on('battle', m => {
+    if (m.ev !== 'request' || m.request.wait) return;
+    const r = m.request; let c = 'default';
+    if (r.forceSwitch) { const i = r.side.pokemon.findIndex(p => !p.active && !p.condition.endsWith(' fnt')); c = i >= 0 ? `switch ${i + 1}` : 'default'; }
+    else if (r.active) { const k = r.active[0].moves.findIndex(x => !x.disabled); c = k >= 0 ? `move ${k + 1}` : 'default'; }
+    setTimeout(() => room.send('battle-choice', { rid: m.rid, choice: c }), 0);
+  });
+  T.ready = true;
+</script>
+</body></html>

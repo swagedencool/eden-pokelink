@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Ami simulé</title><link rel="icon" href="data:,"></head>
+<body>
+<script type="module">
+  // Ami simulé (tests) : rejoint la room sans serveur et marche à côté du joueur, avec son Tiplouf sorti.
+  import { P2PRoom } from '../js/p2p.js';
+  const q = new URLSearchParams(location.search);
+  const room = new P2PRoom({ mode: q.get('p2p') || 'local' });
+  await room.connect('', 'join', q.get('code'));
+  const track = await (await fetch('friend-track.json')).json();
+  room.send('hello', { profile: { name: 'Nova', base: 'aurore', colors: { hat: '#8b5cf6', coat: '#14b8a6', hair: '#f472b6', detail: '#fde047' }, buddy: 393 }, team: [{ species: 393, name: 'Tiplouf', level: 12, gender: 0, hp: 30, maxhp: 30 }] });
+  room.send('follower', { out: true, species: 393 });
+  room.send('soul', { name: 'Nova', mons: [{ uid: 'n9', species: 393, name: 'Tiplouf', loc: 16, level: 12 }, { uid: 'n10', species: 396, name: 'Étourmi', loc: 18, level: 9 }], dead: [] });
+  let i = 0;
+  setInterval(() => { const s = track[Math.min(i, track.length - 1)]; i += 4; room.send('state', { map: s.map, x: s.x, y: s.y, z: s.z, face: s.face, tx: s.tx, tz: s.tz }); }, 66);
+  window.T = { room, ready: true };
+</script>
+</body></html>

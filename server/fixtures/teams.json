@@ -1,0 +1,402 @@
+{
+ "alex": [
+  {
+   "name": "Calabrese",
+   "species": 392,
+   "item": 287,
+   "ability": 66,
+   "moves": [
+    370,
+    369,
+    394,
+    447
+   ],
+   "nature": "Timid",
+   "level": 100,
+   "gender": "M",
+   "shiny": false,
+   "happiness": 255,
+   "evs": {
+    "hp": 0,
+    "atk": 58,
+    "def": 0,
+    "spa": 252,
+    "spd": 0,
+    "spe": 200
+   },
+   "ivs": {
+    "hp": 31,
+    "atk": 31,
+    "def": 31,
+    "spa": 31,
+    "spd": 31,
+    "spe": 31
+   }
+  },
+  {
+   "name": "Shin-Chan",
+   "species": 405,
+   "item": 234,
+   "ability": 79,
+   "moves": [
+    156,
+    214,
+    85,
+    46
+   ],
+   "nature": "Calm",
+   "level": 100,
+   "gender": "F",
+   "shiny": false,
+   "happiness": 255,
+   "evs": {
+    "hp": 252,
+    "atk": 0,
+    "def": 252,
+    "spa": 0,
+    "spd": 0,
+    "spe": 6
+   },
+   "ivs": {
+    "hp": 31,
+    "atk": 31,
+    "def": 31,
+    "spa": 31,
+    "spd": 31,
+    "spe": 31
+   }
+  },
+  {
+   "name": "VioletASMR",
+   "species": 407,
+   "item": 281,
+   "ability": 30,
+   "moves": [
+    202,
+    412,
+    188,
+    398
+   ],
+   "nature": "Timid",
+   "level": 100,
+   "gender": "F",
+   "shiny": false,
+   "happiness": 255,
+   "evs": {
+    "hp": 6,
+    "atk": 0,
+    "def": 0,
+    "spa": 252,
+    "spd": 252,
+    "spe": 0
+   },
+   "ivs": {
+    "hp": 31,
+    "atk": 31,
+    "def": 31,
+    "spa": 31,
+    "spd": 31,
+    "spe": 31
+   }
+  },
+  {
+   "name": "Drip",
+   "species": 426,
+   "item": 0,
+   "ability": 84,
+   "moves": [
+    247,
+    153,
+    87,
+    19
+   ],
+   "nature": "Modest",
+   "level": 100,
+   "gender": "M",
+   "shiny": false,
+   "happiness": 255,
+   "evs": {
+    "hp": 0,
+    "atk": 0,
+    "def": 12,
+    "spa": 252,
+    "spd": 0,
+    "spe": 246
+   },
+   "ivs": {
+    "hp": 31,
+    "atk": 31,
+    "def": 31,
+    "spa": 31,
+    "spd": 31,
+    "spe": 31
+   }
+  },
+  {
+   "name": "Ghibli",
+   "species": 445,
+   "item": 250,
+   "ability": 8,
+   "moves": [
+    337,
+    89,
+    444,
+    14
+   ],
+   "nature": "Modest",
+   "level": 100,
+   "gender": "M",
+   "shiny": false,
+   "happiness": 255,
+   "evs": {
+    "hp": 6,
+    "atk": 252,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 252
+   },
+   "ivs": {
+    "hp": 31,
+    "atk": 31,
+    "def": 31,
+    "spa": 31,
+    "spd": 31,
+    "spe": 31
+   }
+  },
+  {
+   "name": "Bebe",
+   "species": 471,
+   "item": 297,
+   "ability": 81,
+   "moves": [
+    44,
+    352,
+    58,
+    59
+   ],
+   "nature": "Modest",
+   "level": 100,
+   "gender": "M",
+   "shiny": false,
+   "happiness": 255,
+   "evs": {
+    "hp": 6,
+    "atk": 0,
+    "def": 0,
+    "spa": 252,
+    "spd": 0,
+    "spe": 252
+   },
+   "ivs": {
+    "hp": 31,
+    "atk": 31,
+    "def": 31,
+    "spa": 31,
+    "spd": 31,
+    "spe": 31
+   }
+  }
+ ],
+ "nova": [
+  {
+   "name": "GENGAR",
+   "species": 94,
+   "item": 0,
+   "ability": 26,
+   "moves": [
+    325,
+    371,
+    389,
+    399
+   ],
+   "nature": "Calm",
+   "level": 88,
+   "gender": "M",
+   "shiny": false,
+   "happiness": 62,
+   "evs": {
+    "hp": 5,
+    "atk": 1,
+    "def": 218,
+    "spa": 32,
+    "spd": 2,
+    "spe": 252
+   },
+   "ivs": {
+    "hp": 23,
+    "atk": 24,
+    "def": 11,
+    "spa": 5,
+    "spd": 12,
+    "spe": 3
+   }
+  },
+  {
+   "name": "DRAGONITE",
+   "species": 149,
+   "item": 0,
+   "ability": 39,
+   "moves": [
+    280,
+    35,
+    351,
+    332
+   ],
+   "nature": "Lonely",
+   "level": 90,
+   "gender": "F",
+   "shiny": false,
+   "happiness": 255,
+   "evs": {
+    "hp": 252,
+    "atk": 252,
+    "def": 1,
+    "spa": 2,
+    "spd": 0,
+    "spe": 3
+   },
+   "ivs": {
+    "hp": 5,
+    "atk": 31,
+    "def": 14,
+    "spa": 22,
+    "spd": 31,
+    "spe": 31
+   }
+  },
+  {
+   "name": "MILOTIC",
+   "species": 350,
+   "item": 0,
+   "ability": 63,
+   "moves": [
+    352,
+    392,
+    401,
+    445
+   ],
+   "nature": "Serious",
+   "level": 77,
+   "gender": "M",
+   "shiny": false,
+   "happiness": 43,
+   "evs": {
+    "hp": 55,
+    "atk": 11,
+    "def": 83,
+    "spa": 187,
+    "spd": 59,
+    "spe": 115
+   },
+   "ivs": {
+    "hp": 6,
+    "atk": 22,
+    "def": 31,
+    "spa": 31,
+    "spd": 31,
+    "spe": 7
+   }
+  },
+  {
+   "name": "DRAPION",
+   "species": 452,
+   "item": 0,
+   "ability": 4,
+   "moves": [
+    423,
+    424,
+    440,
+    450
+   ],
+   "nature": "Docile",
+   "level": 90,
+   "gender": "M",
+   "shiny": false,
+   "happiness": 124,
+   "evs": {
+    "hp": 1,
+    "atk": 126,
+    "def": 252,
+    "spa": 5,
+    "spd": 41,
+    "spe": 85
+   },
+   "ivs": {
+    "hp": 3,
+    "atk": 31,
+    "def": 12,
+    "spa": 31,
+    "spd": 7,
+    "spe": 31
+   }
+  },
+  {
+   "name": "GARCHOMP",
+   "species": 445,
+   "item": 0,
+   "ability": 8,
+   "moves": [
+    328,
+    337,
+    407,
+    424
+   ],
+   "nature": "Modest",
+   "level": 83,
+   "gender": "M",
+   "shiny": false,
+   "happiness": 85,
+   "evs": {
+    "hp": 68,
+    "atk": 126,
+    "def": 91,
+    "spa": 28,
+    "spd": 83,
+    "spe": 114
+   },
+   "ivs": {
+    "hp": 31,
+    "atk": 25,
+    "def": 31,
+    "spa": 1,
+    "spd": 31,
+    "spe": 4
+   }
+  },
+  {
+   "name": "METAGROSS",
+   "species": 376,
+   "item": 0,
+   "ability": 29,
+   "moves": [
+    359,
+    393,
+    418,
+    428
+   ],
+   "nature": "Hasty",
+   "level": 77,
+   "gender": "N",
+   "shiny": false,
+   "happiness": 242,
+   "evs": {
+    "hp": 106,
+    "atk": 135,
+    "def": 130,
+    "spa": 17,
+    "spd": 16,
+    "spe": 106
+   },
+   "ivs": {
+    "hp": 31,
+    "atk": 31,
+    "def": 31,
+    "spa": 6,
+    "spd": 31,
+    "spe": 2
+   }
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "eden-pokelink-server",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js && node test-pk4.mjs && node test-doors.mjs && node test-rules.mjs && node test-battle.js && node test-atelier.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pokemon-showdown": "^0.11.11",
+    "ws": "^8.18.0"
+  }
+}

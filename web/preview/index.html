@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>PokéLink — preview</title>
+<link rel="stylesheet" href="../css/pokelink.css">
+<style>body { overflow: hidden; } #root { width: 1280px; height: 720px; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import { boot } from './harness.js';
+boot().catch(e => { document.title = 'error'; console.error(e); window.__err = String(e.stack || e); });
+</script>
+</body>
+</html>
