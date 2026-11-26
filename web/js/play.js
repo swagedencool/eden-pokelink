@@ -2,6 +2,7 @@
 // Le jeu tourne dans le navigateur (EmulatorJS) ; PokéLink lit sa mémoire pour afficher les amis dans le monde.
 import { h } from './core.js';
 import { icon } from './icons.js';
+import { mountInfoTab } from './info-tab.js';
 import { P2PRoom } from './p2p.js';
 import { loadRom, saveRom } from './store.js';
 import { detectRom, sizeLabel } from './atelier/games.js';
@@ -82,6 +83,7 @@ function render() {
     h('div.pl-setup-grid', {}, romCard, saveCard, roomCard),
     h('div.pl-start', {}, support || h('span'), h('button.at-btn.primary', { disabled: !r, onclick: start }, h('span', { html: icon('play', 18) }), 'Lancer la partie')),
   ));
+  mountInfoTab(setup.querySelector('.at-head'));
 }
 function radio(id, ic, title, sub, input) {
   const on = S.saveMode === id;

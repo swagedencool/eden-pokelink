@@ -192,3 +192,25 @@ button { font: inherit; color: inherit; }
   .at-doors, .at-starters { grid-template-columns: 1fr; }
   .at-bar { flex-wrap: wrap; width: calc(100% - 32px); }
 }
+
+/* Onglet « Jeux testés » (en-tête des pages) */
+.at-head .at-brand { margin-right: auto; }
+.at-head { gap: 12px; }
+.pl-info { position: relative; flex: 0 0 auto; }
+.pl-info-tab { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.06); color: var(--txt-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.pl-info-tab:hover, .pl-info-tab[aria-expanded="true"] { background: rgba(255, 255, 255, 0.12); color: var(--txt); }
+.pl-info-tab:focus-visible { outline: 2px solid var(--brand-b); outline-offset: 2px; }
+.pl-info-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2); }
+.pl-info-chev { display: grid; transform: rotate(90deg); transition: transform 0.15s; opacity: 0.7; }
+.pl-info-tab[aria-expanded="true"] .pl-info-chev { transform: rotate(-90deg); }
+.pl-info-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; width: min(360px, calc(100vw - 32px)); padding: 16px; border-radius: var(--r-lg); display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.pl-info-panel[hidden] { display: none; }
+.pl-info-title { font-size: 14px; line-height: 20px; color: var(--txt); }
+.pl-info-row { display: flex; gap: 12px; align-items: flex-start; }
+.pl-info-row b { display: block; font-size: 13px; color: var(--txt); }
+.pl-info-row p { margin: 4px 0 0; font-size: 12px; line-height: 18px; color: var(--txt-2); }
+.pl-info-ic { flex: 0 0 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; }
+.pl-info-row.ok .pl-info-ic { background: rgba(52, 211, 153, 0.18); color: #6ee7b7; }
+.pl-info-row.wait .pl-info-ic { background: rgba(251, 191, 36, 0.16); color: #fcd34d; }
+.pl-info-foot { margin: 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--txt-3); }
+@media (max-width: 560px) { .at-brand span:last-child { display: none; } }

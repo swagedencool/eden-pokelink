@@ -54,13 +54,15 @@
       <button class="at-btn primary" id="join">Rejoindre</button>
     </div>
     <div class="hm-list">
-      <div><b>Gen 1 à 5</b>Rouge, Or, Émeraude, Platine, HeartGold, Noir 2… jouables dans le navigateur.</div>
+      <div><b>Gen 1 à 5</b>Rouge, Or, Émeraude, Platine, HeartGold, Noir 2… se lancent dans le navigateur. Testé et fonctionnel pour l’instant : Platine.</div>
       <div><b>3 à 8 joueurs</b>Une room, un code, et chacun garde sa propre aventure.</div>
       <div><b>Aucun serveur</b>Les joueurs se connectent directement entre eux ; ROMs et sauvegardes restent chez chacun.</div>
     </div>
   </div>
   <script type="module">
     import { icon } from './js/icons.js';
+    import { mountInfoTab } from './js/info-tab.js';
+    mountInfoTab(document.querySelector('.at-head'));
     document.getElementById('logo').innerHTML = icon('link-2', 18);
     document.getElementById('ic1').innerHTML = icon('gamepad-2', 24);
     document.getElementById('ic2').innerHTML = icon('wand-sparkles', 24);

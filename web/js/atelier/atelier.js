@@ -1,6 +1,7 @@
 // Atelier ROM : randomizer (Universal Pokémon Randomizer ZX sur le serveur) + random map (dans le navigateur).
 import { h } from '../core.js';
 import { icon } from '../icons.js';
+import { mountInfoTab } from '../info-tab.js';
 import { P2PRoom } from '../p2p.js';
 import { saveRom } from '../store.js';
 import { NdsRom } from '../rom.js';
@@ -59,6 +60,7 @@ function build() {
     els.bar = h('footer.at-bar.glass'),
     els.modal = h('div.at-modal-slot'),
   );
+  mountInfoTab(root.querySelector('.at-head'));
   renderAll();
 }
 const renderAll = () => { renderRoom(); renderRom(); renderPresets(); renderSeed(); renderNav(); renderBanner(); renderFields(); renderBar(); };
