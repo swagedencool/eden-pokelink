@@ -7,7 +7,8 @@ import { RemotePlayer, Follower } from './world.js';
 import { Overlay } from './overlay.js';
 import { InputRouter } from './input.js';
 import { icon } from './icons.js';
-import { InteractionMenu, RequestCard, TradePanel, VersusCard, ProfilePanel, RulesPanel, Toasts, keycap } from './ui.js';
+import { InteractionMenu, RequestCard, TradePanel, VersusCard, ProfilePanel, RulesPanel, SettingsPanel, InvitePanel, Toasts, keycap, tap } from './ui.js';
+import { settings } from './settings.js';
 import { RoomRules } from './rules.js';
 import { BattleView } from './battle-ui.js';
 import { decodeParty, toBattleSet, withPartyHP, boxToParty, PARTY } from './pk4.js';
@@ -50,8 +51,8 @@ export class PokeLinkApp {
    * root : conteneur DOM · assets : extraits de la ROM · game : adaptateur émulateur
    * net : client de room (WebSocket ou simulation) · profile : { name, base, colors, buddy }
    */
-  constructor({ root, assets, gd, game, net, profile, team, room, places = {}, bosses }) {
-    Object.assign(this, { root, assets, gd, game, net, room, places });
+  constructor({ root, assets, gd, game, host, net, profile, team, room, places = {}, bosses }) {
+    Object.assign(this, { root, assets, gd, game, host, net, room, places, turboOn: false });
     if (!team && game.readPartyRaw) team = decodeParty(game.readPartyRaw(), gd);
     this.anim = new Animator();
     this.lib = new SpriteLibrary(assets);
@@ -67,7 +68,12 @@ export class PokeLinkApp {
     this.rules = new RoomRules(this, { bosses });
     this.onRulesChanged();
     this.wireInput();
+    this.wireMouse();
     this.wireNet();
+    settings.on('change', () => { this.applySound(); if (this.turboOn) this.host?.setSpeed(settings.state.turboSpeed); this.refreshControls(); });
+    this.applySound();
+    this.refreshControls();
+    if (Object.keys(this.me.profile.colors || {}).length) this.applyOwnPalette();
     net.send('hello', { profile: this.me.profile, team: this.teamSummary() });
   }
 
@@ -84,20 +90,42 @@ export class PokeLinkApp {
     this.pingEl = h('span', {}, '—');
     this.rulesChip = h('span.pl-chip.rules');
     this.countEl = h('b', {}, '1');
-    const key = (k, t) => h('span.pl-key', {}, h('kbd', {}, k), t);
+    const chipBtn = (cls, title, ic, fn, label) => tap(h('span.pl-chip.btn' + cls, { title }, h('span.ic', { html: icon(ic, 15) }), label || null), fn);
+    this.roomChip = tap(h('span.pl-chip.btn', { title: 'Inviter un ami dans la room' }, 'ROOM', h('b', {}, this.room)), () => this.openInvite());
+    this.inviteChip = chipBtn('.invite', 'Envoyer le lien de la room à un ami', 'user-plus', () => this.openInvite(), h('span', {}, 'Inviter un ami'));
+    this.turboChip = chipBtn('.turbo', 'Accélérer le jeu', 'fast-forward', () => this.setTurbo(!this.turboOn), h('span'));
+    this.soundChip = chipBtn('.sound', 'Couper ou remettre le son', 'volume-2', () => settings.set({ muted: !settings.state.muted, volume: settings.state.volume || 0.6 }));
+    this.settingsChip = chipBtn('.gear', 'Réglages : touches, volume, vitesse', 'settings', () => this.openSettings(), h('span', {}, 'Réglages'));
+    tap(this.rulesChip, () => this.openRules());
+    // Sauvegarder (fichier .sav) · menu : Sauvegarder et quitter
+    this.saveMain = tap(h('span.main', { title: 'Enregistrer ta partie et télécharger ton fichier de sauvegarde (.sav)' }, h('span.ic', { html: icon('download', 16) }), h('span', {}, 'Sauvegarder')), () => this.save(false));
+    this.saveMore = tap(h('span.more', { title: 'Plus d’options', html: icon('chevron-right', 14) }), () => this.toggleSaveMenu());
+    this.saveMenu = h('div.pl-savemenu.glass', { hidden: true },
+      tap(h('div.opt', {}, h('span.ic', { html: icon('download', 16) }), h('div', {}, h('b', {}, 'Sauvegarder'), h('small', {}, 'Télécharge ton fichier .sav, la partie continue'))), () => this.save(false)),
+      tap(h('div.opt.quit', {}, h('span.ic', { html: icon('door-open', 16) }), h('div', {}, h('b', {}, 'Sauvegarder et quitter'), h('small', {}, 'Télécharge ton fichier .sav puis quitte la room'))), () => this.save(true)));
+    this.saveBtn = h('div.pl-save', {}, this.saveMain, this.saveMore, this.saveMenu);
+    document.addEventListener('click', () => this.toggleSaveMenu(false));
+    const key = (action, t, fn) => tap(h('span.pl-key', { title: t }, h('kbd'), t), fn);
+    this.keyEls = {
+      A: key('A', 'Interagir', () => this.promptPeer ? this.openMenu(this.promptPeer) : this.ui.toasts.show({ ic: 'users', title: 'Approche-toi d’un ami', sub: 'Mets-toi face à lui, puis clique sur la bulle « Interagir » ou sur lui', dur: 2400 })),
+      follower: key('follower', 'Pokémon', () => this.toggleFollower()),
+      profile: key('profile', 'Profil', () => this.openProfile()),
+      emote: key('emote', 'Émote', () => this.sendEmote('heart')),
+    };
     this.stage = h('div.pl-stage', {},
       h('div.pl-ambient', {}, this.ambient), h('div.pl-grain'),
       h('header.pl-header', {},
         h('div.pl-brand', {}, h('div.logo', { html: icon('link-2', 17) }), 'PokéLink', h('small', {}, 'Platine')),
-        h('span.pl-chip', {}, 'ROOM', h('b', {}, this.room)),
+        this.roomChip,
         h('span.pl-chip', {}, h('i.pl-dot'), this.countEl, ' joueurs'),
-        this.duoChip, this.rulesChip, h('span.pl-spacer'),
-        h('span.pl-chip', { html: icon('wifi', 15) }, this.pingEl)),
-      h('section.pl-game', {}, top, this.ovCanvas, this.domLayer, this.uiLayer),
+        this.inviteChip, this.duoChip, this.rulesChip, h('span.pl-spacer'),
+        this.saveBtn, this.turboChip, this.soundChip, this.settingsChip,
+        h('span.pl-chip', { html: icon('wifi', 15), title: 'Latence avec la room' }, this.pingEl)),
+      this.gameEl = h('section.pl-game', {}, top, this.ovCanvas, this.domLayer, this.uiLayer),
       h('aside.pl-side', {},
         h('div.pl-bottom.glass-light', {}, bottom),
         h('div.pl-room.glass-light', {}, h('h4', { html: icon('users', 14) + ' Dans la room' }), this.playersEl,
-          h('div.pl-keys', {}, key('X', 'Interagir'), key('P', 'Pokémon'), key('C', 'Profil'), key('E', 'Émote')))));
+          h('div.pl-keys', {}, ...Object.values(this.keyEls)))));
     bottom.className = '';
     this.root.append(this.stage);
   }
@@ -115,11 +143,36 @@ export class PokeLinkApp {
     };
     inp.on('nav', k => this.ui.nav(k));
     inp.on('a-press', () => { if (this.promptPeer) { inp.consumeA(); this.openMenu(this.promptPeer); } });
+    inp.speed = () => (this.turboOn ? settings.state.turboSpeed : 1);
     inp.on('hotkey', k => {
       if (k === 'follower') this.toggleFollower();
       if (k === 'profile') this.openProfile();
       if (k === 'emote') this.sendEmote('heart');
       if (k === 'rules') this.openRules();
+      if (k === 'turbo') this.setTurbo(!this.turboOn);
+      if (k === 'invite') this.ui.top() instanceof InvitePanel ? this.ui.top().nav('B') : this.openInvite();
+      if (k === 'settings') this.ui.top() instanceof SettingsPanel ? this.ui.top().nav('B') : this.openSettings();
+    });
+  }
+
+  // ---------------------------------------------------------------- souris
+  wireMouse() {
+    // la bulle « Interagir » au-dessus d'un ami
+    tap(this.overlay.prompt, () => this.promptPeer && !this.ui.active && this.openMenu(this.promptPeer));
+    // clic sur un ami dans le jeu : menu s'il est juste devant soi, sinon un conseil
+    this.gameEl.addEventListener('click', e => {
+      if (this.ui.active || e.target.closest('.pl-click, .glass')) return;
+      const r = this.gameEl.getBoundingClientRect(), k = r.width / 768;
+      const x = (e.clientX - r.left) / k, y = (e.clientY - r.top) / k;
+      let best = null, bd = 1e9;
+      for (const p of this.peers.values()) {
+        const a = this.overlay.screen.get(p.id); if (!a) continue;
+        const d = Math.hypot(x - a.x, (y - a.y) * 0.7);
+        if (d < 56 && d < bd) { bd = d; best = p; }
+      }
+      if (!best) return;
+      if (best === this.promptPeer) this.openMenu(best);
+      else this.ui.toasts.show({ profile: best.profile, title: `Approche-toi de ${best.profile.name}`, sub: 'Mets-toi juste en face pour interagir', dur: 2000 });
     });
   }
 
@@ -314,7 +367,7 @@ export class PokeLinkApp {
       f.species = this.me.profile.buddy || mon.species;
       f.spawn(this.anim.now, s);
       const m = this.me.team.find(x => x.species === f.species) || mon;
-      this.ui.toasts.show({ species: m.species, accent: '#f97316', title: `${m.name} te suit !`, sub: 'Appuie sur P pour le faire rentrer', dur: 2200 });
+      this.ui.toasts.show({ species: m.species, accent: '#f97316', title: `${m.name} te suit !`, sub: `Touche ${settings.label('follower')} ou bouton « Pokémon » pour le faire rentrer`, dur: 2200 });
     }
     this.sendFollower(f.fx?.kind !== 'recall');
   }
@@ -331,8 +384,53 @@ export class PokeLinkApp {
     const st = this.rules.state, cap = this.rules.cap, on = st.soulLink || !!cap;
     const parts = [st.soulLink ? 'Âmes liées' : null, cap ? `N.${cap.level}` : null].filter(Boolean);
     this.rulesChip.classList.toggle('on', on);
-    this.rulesChip.replaceChildren(keycap('R'), on ? parts.join(' · ') : 'Règles');
+    this.rulesChip.replaceChildren(keycap(settings.label('rules')), on ? parts.join(' · ') : 'Règles');
     if (this.rulesPanel && !this.rulesPanel.closed) this.rulesPanel.refresh();
+  }
+
+  toggleSaveMenu(open = this.saveMenu.hidden) {
+    this.saveMenu.hidden = !open;
+    this.saveBtn.classList.toggle('open', open);
+  }
+  /** Sauvegarde : le jeu écrit son fichier, gardé dans le navigateur et téléchargé ; quit : retour à l'accueil. */
+  async save(quit) {
+    this.toggleSaveMenu(false);
+    if (this.saving) return;
+    this.saving = true; this.saveBtn.classList.add('busy');
+    try {
+      const r = await this.onSave?.(quit);
+      if (!quit) this.ui.toasts.show({ ic: 'check', accent: '#10b981', title: 'Partie sauvegardée', sub: r?.name ? `Fichier ${r.name} téléchargé · aussi gardé dans ce navigateur` : 'Gardée dans ce navigateur', dur: 3600 });
+    } catch (e) {
+      this.ui.toasts.show({ ic: 'circle-alert', accent: '#ef4444', title: 'Sauvegarde impossible', sub: e.message || String(e), dur: 4200 });
+    } finally { this.saving = false; this.saveBtn.classList.remove('busy'); }
+  }
+
+  openSettings() {
+    if (this.ui.active) return;
+    const panel = new SettingsPanel(this.ui, { turbo: () => this.turboOn, onTurbo: on => this.setTurbo(on), capture: fn => (this.input.capture = fn) });
+    this.ui.open(panel, { from: { s: 0.92, o: 0, y: 14 }, dur: 300 });
+  }
+  openInvite() {
+    if (this.ui.active) return;
+    const link = new URL('play.html', location.href); link.search = '?room=' + this.room;
+    this.ui.open(new InvitePanel(this.ui, { code: this.room, link: link.href }), { from: { s: 0.92, o: 0, y: 14 }, dur: 280 });
+  }
+  setTurbo(on) {
+    this.turboOn = !!on;
+    this.host?.setSpeed(on ? settings.state.turboSpeed : 1);
+    this.refreshControls();
+    this.ui.toasts.show({ ic: 'fast-forward', accent: '#fbbf24', title: on ? `Jeu accéléré ×${String(settings.state.turboSpeed).replace('.', ',')}` : 'Vitesse normale', sub: `Touche ${settings.label('turbo')} pour ${on ? 'revenir à la normale' : 'accélérer'}`, dur: 1600 });
+  }
+  applySound() { this.host?.setVolume(settings.effectiveVolume); }
+  /** Puces de l'en-tête et touches affichées : suivent les réglages (touches choisies, son, turbo). */
+  refreshControls() {
+    const st = settings.state, vol = settings.effectiveVolume;
+    this.turboChip.classList.toggle('on', this.turboOn);
+    this.turboChip.lastChild.textContent = this.turboOn ? '×' + String(st.turboSpeed).replace('.', ',') : '×1';
+    this.soundChip.firstChild.innerHTML = icon(vol === 0 ? 'volume-x' : vol < 0.5 ? 'volume-1' : 'volume-2', 15);
+    this.soundChip.classList.toggle('off', vol === 0);
+    for (const [a, el] of Object.entries(this.keyEls)) el.firstChild.textContent = settings.label(a);
+    this.onRulesChanged?.();
   }
 
   openProfile() {
@@ -348,15 +446,19 @@ export class PokeLinkApp {
     const before = this.me.profile;
     this.me.profile = { ...draft, colors: Object.fromEntries(Object.entries(draft.colors || {}).filter(([, v]) => v)) };
     this.net.send('profile', { profile: this.me.profile, team: this.teamSummary() });
-    // Son propre personnage : on réécrit sa palette dans la ROM chargée ; le jeu la relit au prochain chargement de zone.
-    const a = this.assets.avatars[this.me.profile.base];
-    if (a && this.me.profile.base === this.game.playerBase) {
-      const pal = this.lib.avatarPalette(this.me.profile.base, this.me.profile.colors);
-      this.game.patchRom(a.paletteRomOffset, pal, writePalette);
-    }
+    this.applyOwnPalette();
+    try { localStorage.setItem('pokelink.colors', JSON.stringify(this.me.profile.colors)); localStorage.setItem('pokelink.name', this.me.profile.name); } catch {}
     if (this.me.follower.out && draft.buddy !== before.buddy) { this.me.follower.species = draft.buddy; this.sendFollower(true); }
-    this.ui.toasts.show({ profile: this.me.profile, title: 'Profil enregistré', sub: 'Tes amis te voient déjà ainsi · ton écran suit au prochain changement de zone', dur: 3200 });
+    this.ui.toasts.show({ profile: this.me.profile, title: 'Profil enregistré', sub: 'Tes amis te voient déjà ainsi · ton personnage change dès que tu passes une porte ou ouvres un menu', dur: 3200 });
     this.refreshSide(true);
+  }
+
+  /** Son propre personnage : sa palette est réécrite dans la ROM chargée ; le jeu la relit au prochain chargement
+   *  de zone (porte, menu plein écran…). */
+  applyOwnPalette() {
+    const a = this.assets.avatars[this.me.profile.base];
+    if (!a || this.me.profile.base !== this.game.playerBase) return false;
+    return this.game.patchRom(a.paletteRomOffset, this.lib.avatarPalette(this.me.profile.base, this.me.profile.colors || {}), writePalette);
   }
 
   // ---------------------------------------------------------------- boucle

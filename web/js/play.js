@@ -7,6 +7,7 @@ import { P2PRoom } from './p2p.js';
 import { loadRom, saveRom } from './store.js';
 import { detectRom, sizeLabel } from './atelier/games.js';
 import { EmuHost } from './emu/host.js';
+import { settings } from './settings.js';
 import { PlatinumGame } from './emu/platinum.js';
 import { NdsRom, loadAssets } from './rom.js';
 import { ICON_PALETTES } from './data/icon-palettes.js';
@@ -119,13 +120,30 @@ async function start() {
 
     loading('Démarrage du jeu…', 'Le premier lancement télécharge l’émulateur (quelques secondes).');
     const host = new EmuHost({ mount: '#emu', platform: r.info.platform, ownInput: !!LIVE[r.info.code] });
+    host.volume = settings.effectiveVolume;
     await host.start(r.bytes, `${r.info.name}.${r.info.platform}`, save ? new Uint8Array(save) : null);
     loading();
+    host.setVolume(settings.effectiveVolume);
     setup.hidden = true;
     autoBackup(host, r.key);
     if (LIVE[r.info.code]) startLive(host, net, joined, save);
     else startSimple(host, net, joined);
   } catch (e) { loading(); alertBox(e.message || String(e)); }
+}
+
+/** Bouton « Sauvegarder » : le jeu écrit son fichier, gardé dans le navigateur, et le .sav est téléchargé. */
+async function saveGame(host, quit, trainer = S.name) {
+  const sav = host.exportSave();
+  if (!sav || !sav.length) throw new Error('Le jeu n’a pas encore de sauvegarde (sauvegarde une fois dans le menu du jeu).');
+  await saveRom('save:' + S.rom.key, { bytes: sav, at: Date.now() });
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  const who = String(trainer || 'partie').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'partie';
+  const name = `PokeLink-${S.rom.info.name.replace(/[^a-zA-Z0-9]+/g, '')}-${who}-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}h${pad(d.getMinutes())}.sav`;
+  const url = URL.createObjectURL(new Blob([sav], { type: 'application/octet-stream' }));
+  const a = h('a', { href: url, download: name }); document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  if (quit) { S.leaving = true; setTimeout(() => { location.href = 'index.html'; }, 900); }
+  return { name };
 }
 
 /** Sauvegarde gardée dans le navigateur toutes les 30 s (et en quittant la page). */
@@ -163,9 +181,12 @@ function startLive(host, net, joined, save) {
   game.playerBase = base;
   const wrap = document.getElementById('stage-wrap'), root = document.getElementById('root');
   wrap.hidden = false;
-  const app = new PokeLinkApp({ root, assets, gd, game, net, room: joined.code, team, bosses: bossLevels(rom),
+  const app = new PokeLinkApp({ root, assets, gd, game, host, net, room: joined.code, team, bosses: bossLevels(rom),
     profile: { name: trainer, base, colors: JSON.parse(localStorage.getItem('pokelink.colors') || '{}'), buddy: team[0]?.species || 392 } });
   window.PL = { app, host, game };
+  app.onSave = quit => saveGame(host, quit, trainer);
+  // quitter par erreur (fermer l'onglet, recharger) : le navigateur demande confirmation
+  addEventListener('beforeunload', e => { if (!S.leaving) { e.preventDefault(); e.returnValue = ''; } });
   const fit = () => { const k = Math.min(innerWidth / 1280, innerHeight / 720); root.style.transform = `scale(${k})`; };
   fit(); addEventListener('resize', fit);
   forwardTouch(game.bottomCanvas, host);
@@ -187,18 +208,33 @@ function startLive(host, net, joined, save) {
   requestAnimationFrame(loop);
 }
 
-/** Écran tactile : les clics sur l'écran du bas de PokéLink sont transmis à l'émulateur. */
+/** Écran tactile : la souris (ou le doigt) sur l'écran du bas de PokéLink sert de stylet pour l'émulateur.
+ *  Un appui est tenu au moins 6 images : un clic très rapide serait sinon invisible pour le jeu. */
 function forwardTouch(canvas, host) {
-  let down = false;
+  let down = false, t0 = 0, upTimer = 0;
   const send = (type, e) => {
     const r = canvas.getBoundingClientRect(), c = host.canvas, cr = c.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
-    c.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0, buttons: type === 'mouseup' ? 0 : 1,
-      clientX: cr.left + x * cr.width, clientY: cr.top + (0.5 + y / 2) * cr.height }));
+    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    const ev = { bubbles: true, cancelable: true, button: 0, buttons: type === 'mouseup' ? 0 : 1,
+      clientX: cr.left + x * cr.width, clientY: cr.top + (0.5 + y / 2) * cr.height };
+    c.dispatchEvent(new MouseEvent(type, ev));
   };
-  canvas.addEventListener('pointerdown', e => { down = true; send('mousedown', e); });
+  canvas.style.cursor = 'pointer';
+  canvas.style.touchAction = 'none';
+  canvas.addEventListener('pointerdown', e => {
+    e.preventDefault(); clearTimeout(upTimer);
+    canvas.setPointerCapture?.(e.pointerId);
+    down = true; t0 = performance.now(); send('mousemove', e); send('mousedown', e);
+  });
   canvas.addEventListener('pointermove', e => { if (down) send('mousemove', e); });
-  addEventListener('pointerup', e => { if (down) { down = false; send('mouseup', e); } });
+  const up = e => {
+    if (!down) return; down = false;
+    const wait = Math.max(0, 100 - (performance.now() - t0)), p = { clientX: e.clientX, clientY: e.clientY };
+    upTimer = setTimeout(() => send('mouseup', p), wait);
+  };
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
 }
 
 /** Autres jeux : l'écran du jeu dans le cadre PokéLink, avec la room. */

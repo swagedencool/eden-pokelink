@@ -3,7 +3,7 @@
 import { h, ease, setTO, clamp } from './core.js';
 import { icon } from './icons.js';
 import { TYPE_COLORS } from './gamedata.js';
-import { Panel, keycap } from './ui.js';
+import { Panel, keycap, tap } from './ui.js';
 
 const STAT = { atk: "L'Attaque", def: 'La Défense', spa: "L'Attaque Spé.", spd: 'La Défense Spé.', spe: 'La Vitesse', accuracy: 'La Précision', evasion: "L'Esquive" };
 const STATUS = { par: ['PAR', '#e6c229', 'est paralysé ! Il aura du mal à attaquer.'], brn: ['BRÛ', '#f08030', 'est brûlé !'], psn: ['PSN', '#a040a0', 'est empoisonné !'], tox: ['PSN', '#a040a0', 'est gravement empoisonné !'], slp: ['SOM', '#8a8aa8', "s'est endormi !"], frz: ['GEL', '#98d8d8', 'est gelé !'] };
@@ -234,9 +234,11 @@ export class BattleView extends Panel {
     const sw = { el: h('div.bside', {}, h('span', { html: icon('users', 18) }), 'Pokémon'), choice: 'switch-menu' };
     const ff = { el: h('div.bside.warn', {}, h('span', { html: icon('x', 18) }), 'Abandonner'), choice: 'forfeit' };
     this.grid = [this.buttons[0], this.buttons[1], sw, this.buttons[2], this.buttons[3], ff];
+    this.ffArmed = false;
     // sélection initiale : la première attaque utilisable (jamais « Pokémon » ni « Abandonner » par défaut)
     this.sel = [0, 1, 3, 4].find(i => !this.grid[i].off) ?? 2;
     this.panel.replaceChildren(h('div.bacts', {}, h('div.bmoves', {}, this.buttons.map(b => b.el)), h('div.bsides', {}, sw.el, ff.el)));
+    this.grid.forEach((b, i) => !b.off && tap(b.el, () => { if (this.cur !== 'act') return; this.sel = i; this.nav('A'); }, () => { if (this.cur === 'act') { this.sel = i; this.refreshSel(); } }));
     this.cur = 'act'; this.refreshSel();
   }
   showSwitch(r, forced = false) {
@@ -252,6 +254,8 @@ export class BattleView extends Panel {
     this.forced = forced;
     this.sel = this.cards.findIndex(c => !c.off);
     this.panel.replaceChildren(h('div.bcards', {}, this.cards.map(c => c.el)));
+    this.cards.forEach((c, i) => !c.off && tap(c.el, () => { if (this.cur !== 'switch') return; this.sel = i; this.nav('A'); }, () => { if (this.cur === 'switch') { this.sel = i; this.refreshSel(); } }));
+    if (!forced) this.prompt.append(tap(h('span.bback', {}, h('span', { html: icon('chevron-left', 14) }), 'Retour'), () => this.nav('B')));
     this.cur = 'switch'; this.refreshSel();
   }
   waiting() { this.prompt.style.opacity = 0; this.panel.replaceChildren(h('div.bmsg.wait', {}, h('span.pl-spin'), `En attente de ${this.peer.name}…`)); this.cur = 'wait'; }
@@ -261,10 +265,16 @@ export class BattleView extends Panel {
   }
   nav(k) {
     if (this.cur === 'act') {
+      const before = this.sel;
       this.sel = BattleView.step(this.grid, this.sel, k);
+      if (this.ffArmed && (this.sel !== before || k === 'B')) { this.ffArmed = false; const f = this.grid[5]; f.el.lastChild.textContent = 'Abandonner'; f.el.classList.remove('armed'); }
       if (k === 'A') {
         const b = this.grid[this.sel];
         if (b.choice === 'switch-menu') return this.showSwitch(this.lastReq), true;
+        if (b.choice === 'forfeit' && !this.ffArmed) {          // abandon : demande une confirmation
+          this.ffArmed = true; b.el.lastChild.textContent = 'Confirmer ?'; b.el.classList.add('armed');
+          this.refreshSel(); return true;
+        }
         this.choose(b.choice);
       }
       this.refreshSel(); return true;

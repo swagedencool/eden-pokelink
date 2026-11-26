@@ -30,7 +30,7 @@ function keepDrawingBuffer() {
 export class EmuHost {
   /** ownInput : PokéLink gère le clavier (sinon EmulatorJS garde ses touches par défaut). */
   constructor({ mount, platform, dataPath = 'vendor/emulatorjs/', core, ownInput = true }) {
-    Object.assign(this, { mount, platform, dataPath, ownInput, keys: new Set() });
+    Object.assign(this, { mount, platform, dataPath, ownInput, keys: new Set(), speed: 1 });
     this.core = core || CORES[platform];
     if (!this.core) throw new Error('Console non prise en charge : ' + platform);
   }
@@ -41,10 +41,12 @@ export class EmuHost {
       const w = window;
       Object.assign(w, {
         EJS_player: this.mount, EJS_core: this.core, EJS_gameName: 'pokelink-' + name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-]+/g, '-').toLowerCase(),
-        EJS_pathtodata: this.dataPath, EJS_startOnLoaded: true, EJS_threads: false, EJS_volume: 0.6, EJS_language: 'fr-FR',
+        EJS_pathtodata: this.dataPath, EJS_startOnLoaded: true, EJS_threads: false, EJS_volume: this.volume ?? 0.6, EJS_language: 'fr-FR',
         EJS_Buttons: Object.fromEntries(HIDDEN_BUTTONS.map(b => [b, false])),
         ...(this.ownInput ? { EJS_defaultControls: { 0: {}, 1: {}, 2: {}, 3: {} } } : {}),
         EJS_backgroundColor: '#000000', EJS_noAutoFocus: true,
+        // DS : la souris est un stylet (position absolue sur l'écran du bas), pas un curseur relatif
+        EJS_defaultOptions: { desmume_pointer_type: 'touch', desmume_pointer_mouse: 'enabled', desmume_pointer_colour: 'white', melonds_touch_mode: 'Touch' },
       });
       // La sauvegarde du joueur est posée dans le dossier des sauvegardes AVANT le chargement du jeu :
       // le cœur la trouve au démarrage, exactement comme une cartouche (pas de redémarrage, pas d'erreur de mémoire).
@@ -53,6 +55,12 @@ export class EmuHost {
       const hook = () => {
         const e = window.EJS_emulator;
         if (!e) return setTimeout(hook, 30);
+        // pas de messages de RetroArch incrustés dans l'image (« Fast Forward »…) : PokéLink a sa propre interface
+        const GM = window.EJS_GameManager?.prototype;
+        if (GM && !GM._plCfg) {
+          const orig = GM.getRetroArchCfg; GM._plCfg = true;
+          GM.getRetroArchCfg = function () { return orig.call(this) + 'video_font_enable = false\nmenu_enable_widgets = false\nnotification_show_fast_forward = false\nnotification_show_autoconfig = false\nnotification_show_remap_load = false\nnotification_show_config_override_load = false\nnotification_show_save_state = false\n'; };
+        }
         e.on('saveDatabaseLoaded', FS => {
           const dir = `/data/saves/${SAVE_DIR[this.core]}`;
           try { if (!FS.analyzePath(dir).exists) FS.mkdir(dir); } catch {}
@@ -84,6 +92,24 @@ export class EmuHost {
     for (const k of this.keys) if (!next.has(k) && RETRO[k] !== undefined) this.gm.simulateInput(0, RETRO[k], 0);
     for (const k of next) if (!this.keys.has(k) && RETRO[k] !== undefined) this.gm.simulateInput(0, RETRO[k], 1);
     this.keys = next;
+  }
+  /** Volume du jeu, de 0 à 1. */
+  setVolume(v) {
+    const e = this.ejs; if (!e) return;
+    v = Math.max(0, Math.min(1, +v || 0));
+    if (v > 0) e.volume = v;
+    try { e.setVolume ? e.setVolume(v) : null; } catch {}
+    // filet de sécurité : le gain des sources audio du cœur
+    try { e.Module?.AL?.currentCtx?.sources?.forEach(src => (src.gain.gain.value = v)); } catch {}
+  }
+  /** Vitesse du jeu : 1 = normale, 2 = deux fois plus vite… (avance rapide de RetroArch, plafonnée au ratio). */
+  setSpeed(x) {
+    const gm = this.gm; if (!gm) return;
+    this.speed = x > 1 ? x : 1;
+    try {
+      if (this.speed > 1) { gm.setFastForwardRatio(this.speed); gm.toggleFastForward(1); this.ejs.isFastForward = true; }
+      else { gm.toggleFastForward(0); this.ejs.isFastForward = false; }
+    } catch {}
   }
   /** Sauvegarde du jeu en .sav brut (lisible par tous les émulateurs et linkers). */
   exportSave() { const s = this.gm.getSaveFile(); return s ? rawSave(s) : null; }

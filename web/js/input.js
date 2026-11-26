@@ -4,12 +4,10 @@
 // se tourner (appui de 4 frames, mesuré sur Platine : ≤ 6 frames = demi-tour sans pas).
 
 import { Emitter } from './core.js';
+import { settings, DS_BUTTONS } from './settings.js';
 
-export const KEYMAP = {
-  ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT',
-  KeyX: 'A', KeyZ: 'B', KeyS: 'X', KeyA: 'Y', KeyQ: 'L', KeyW: 'R', Enter: 'START', Backspace: 'SELECT',
-};
-export const HOTKEYS = { KeyP: 'follower', KeyC: 'profile', KeyE: 'emote', KeyR: 'rules' };
+// Touches réglables (voir settings.js). Dans les menus, flèches, Entrée et Échap marchent toujours en plus.
+const MENU_FALLBACK = { ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT', Enter: 'A', NumpadEnter: 'A', Escape: 'B' };
 const DIR_OF = { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3 };
 const TURN_TAP_FRAMES = 4;
 
@@ -22,20 +20,28 @@ export class InputRouter extends Emitter {
     this.uiActive = () => false;
     this.isBlocked = () => false;  // (dir) => un ami occupe la case dans cette direction ?
     this.facing = () => 1;
-    target.addEventListener('keydown', e => this.down(e));
+    this.speed = () => 1;      // vitesse du jeu : un demi-tour dure 4 images du jeu, quel que soit le turbo
+    this.capture = null;
+    target.addEventListener('keydown', e => this.down(e), true);
     target.addEventListener('keyup', e => this.up(e));
   }
   down(e) {
-    if (e.target?.tagName === 'INPUT' && !['Enter', 'Escape', 'ArrowUp', 'ArrowDown'].includes(e.code)) return;
-    const k = KEYMAP[e.code];
-    if (e.repeat) { e.preventDefault?.(); return; }
+    if (this.capture) {                       // réglage d'une touche : la prochaine touche pressée est prise telle quelle
+      e.preventDefault?.(); e.stopPropagation?.();
+      const f = this.capture; this.capture = null; f(e.code); return;
+    }
+    const tag = e.target?.tagName;
+    if ((tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') && !['Enter', 'Escape', 'ArrowUp', 'ArrowDown'].includes(e.code)) return;
+    const act = settings.action(e.code), k = DS_BUTTONS.has(act) ? act : null;
+    if (e.repeat) { if (k || act) e.preventDefault?.(); return; }
     if (this.uiActive()) {
-      e.preventDefault?.();
-      const nav = k || (e.code === 'Escape' ? 'B' : null);
+      const nav = k || MENU_FALLBACK[e.code] || null;
+      if (nav || act) e.preventDefault?.();
       if (nav) this.emit('nav', nav);
+      else if (act === 'settings' || act === 'invite') this.emit('hotkey', act);
       return;
     }
-    if (HOTKEYS[e.code]) { e.preventDefault?.(); this.emit('hotkey', HOTKEYS[e.code]); return; }
+    if (act && !k) { e.preventDefault?.(); this.emit('hotkey', act); return; }
     if (!k) return;
     e.preventDefault?.();
     if (k === 'A') {
@@ -45,16 +51,18 @@ export class InputRouter extends Emitter {
     }
     if (k in DIR_OF && this.isBlocked(DIR_OF[k])) {
       this.blocked.add(k);
-      if (this.facing() !== DIR_OF[k]) this.taps.set(k, TURN_TAP_FRAMES);
+      if (this.facing() !== DIR_OF[k]) this.taps.set(k, this.turnTap());
       return;
     }
     this.held.add(k);
   }
   up(e) {
-    const k = KEYMAP[e.code];
-    if (!k) return;
-    this.held.delete(k); this.blocked.delete(k);
+    const act = settings.action(e.code);
+    if (act === 'turbo') this.emit('hotkey-up', act);
+    if (!DS_BUTTONS.has(act)) return;
+    this.held.delete(act); this.blocked.delete(act);
   }
+  turnTap() { return Math.max(1, Math.round(TURN_TAP_FRAMES / this.speed())); }
   /** Le gestionnaire d'interface peut « prendre » le A (ex. pour ouvrir le menu d'un ami). */
   consumeA() { this._consumeA = true; }
   /** Libère tout (ouverture d'un panneau pendant qu'une touche est tenue). */

@@ -129,11 +129,18 @@ async function pickRom(file) {
 function renderPresets() {
   els.presetCard.replaceChildren(
     h('h2.at-h', {}, h('span', { html: icon('wand-sparkles', 16) }), 'Formules'),
-    h('div.at-presets', {}, ...PRESETS.map(p => h('button.at-preset', { 'aria-pressed': String(S.preset === p.id), onclick: () => applyPreset(p) },
+    h('div.at-presets', {}, ...PRESETS.map(p => h('button.at-preset', { 'aria-pressed': String(S.preset === p.id), title: S.preset === p.id ? 'Cliquer à nouveau pour retirer la formule' : null, onclick: () => applyPreset(p) },
       h('b', {}, p.name), h('small', {}, p.sub)))),
   );
 }
+/** Recliquer sur la formule choisie la retire : on revient aux réglages d'origine du jeu. */
 function applyPreset(p) {
+  if (S.preset === p.id) {
+    S.values = { ...DEFAULTS, ...(S.info?.defaults ? pick(S.info.defaults) : {}) };
+    S.tweaks = new Set(); S.doors = 'off'; S.rules = new Set(); S.preset = null; S.result = null; S.imported = null;
+    renderAll(); toast(`Formule « ${p.name} » retirée : réglages d’origine`);
+    return;
+  }
   S.values = { ...DEFAULTS, ...(S.info?.defaults ? pick(S.info.defaults) : {}), ...p.settings };
   S.tweaks = new Set(p.tweaks.filter(b => !S.info || S.info.tweaks.some(t => t.bit === b)));
   S.doors = S.rom && !DOOR_GAMES[S.rom.code] ? 'off' : p.doors;
@@ -250,7 +257,7 @@ function renderFields() {
   for (const f of sec.fields) {
     if (!visibleField(f)) continue;
     if (f.type === 'choice') rows.push(h('div.at-field', {}, h('label.at-label', {}, f.label),
-      h('div.at-seg', { role: 'radiogroup' }, ...f.options.map(([v, l]) => h('button.at-seg-btn', { role: 'radio', 'aria-checked': String(S.values[f.key] === v), onclick: () => set(f.key, v) }, l)))));
+      h('div.at-seg', { role: 'radiogroup' }, ...f.options.map(([v, l]) => h('button.at-seg-btn', { role: 'radio', 'aria-checked': String(S.values[f.key] === v), onclick: () => set(f.key, S.values[f.key] === v && v !== f.options[0][0] ? f.options[0][0] : v) }, l)))));
     if (f.type === 'bool') rows.push(toggleRow(f.label, f.hint, !!S.values[f.key], v => set(f.key, v)));
     if (f.type === 'int') {
       const val = S.values[f.key] ?? f.min, out = h('output.at-val', {}, fmt(val, f));
@@ -295,7 +302,7 @@ function doorsField() {
   const ok = !S.rom || DOOR_GAMES[S.rom.code];
   return h('div.at-field', {},
     h('div.at-doors', {}, ...DOOR_CHOICES.map(([id, name, desc]) => h('button.at-door', { 'aria-pressed': String(S.doors === id), disabled: !ok && id !== 'off',
-      onclick: () => { S.doors = id; S.preset = null; S.result = null; renderFields(); renderNav(); renderPresets(); renderBar(); } },
+      onclick: () => { S.doors = S.doors === id ? 'off' : id; S.preset = null; S.result = null; renderFields(); renderNav(); renderPresets(); renderBar(); } },
       h('span.at-door-ic', { html: icon(id === 'off' ? 'map' : id === 'chaos' ? 'sparkles' : id === 'region' ? 'footprints' : 'door-open', 20) }),
       h('b', {}, name), h('small', {}, desc)))),
     ok ? h('p.at-note.pad', {}, 'Le mélange des portes se fait dans ton navigateur, après le randomizer.')

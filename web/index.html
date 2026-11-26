@@ -50,7 +50,7 @@
     </div>
     <div class="hm-join glass">
       <b>Un ami t’a donné un code ?</b>
-      <input class="at-input mono" id="code" placeholder="Code de room" maxlength="8" aria-label="Code de room">
+      <input class="at-input mono" id="code" placeholder="Code de room" maxlength="200" aria-label="Code de room" autocomplete="off" spellcheck="false">
       <button class="at-btn primary" id="join">Rejoindre</button>
     </div>
     <div class="hm-list">
@@ -68,9 +68,9 @@
     document.getElementById('ic2').innerHTML = icon('wand-sparkles', 24);
     for (const id of ['go1', 'go2']) document.getElementById(id).insertAdjacentHTML('beforeend', `<span>${icon('chevron-right', 16)}</span>`);
     const code = document.getElementById('code');
-    const go = () => { const c = code.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c) location.href = `play.html?room=${c}`; };
+    const go = () => { const v = code.value.trim(), m = v.match(/[?&]room=([A-Za-z0-9]+)/); const c = (m ? m[1] : v).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); if (c) location.href = `play.html?room=${c}`; };
     document.getElementById('join').onclick = go;
-    code.onkeydown = e => e.key === 'Enter' && go();
+    code.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
   </script>
 </body>
 </html>

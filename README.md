@@ -42,7 +42,11 @@ Trois pages :
 | **Âmes liées** : Pokémon rencontrés au même endroit liés entre amis ; un K.O. emporte les autres, qui restent K.O. (même après un Centre Pokémon) | ✅ |
 | **Plafond de niveau** : automatique (prochain champion, lu dans ta ROM, donc randomisée) ou fixe ; plus d'EXP en combat ni à la Pension, Super Bonbon sans effet | ✅ vérifié dans le jeu |
 | Les deux règles s'activent et se coupent à tout moment, par n'importe quel joueur (touche R), et sont transmises aux arrivants | ✅ |
-| Sauvegarde gardée dans le navigateur toutes les 30 s, export en `.sav` brut | ✅ |
+| Bouton **Sauvegarder** (télécharge ton `.sav`) et **Sauvegarder et quitter** ; sauvegarde aussi gardée dans le navigateur toutes les 30 s | ✅ vérifié |
+| **Écran tactile** : la souris sert de stylet sur l'écran du bas (tutoriel, Pokétch…) | ✅ vérifié |
+| **Réglages** en jeu : toutes les touches modifiables, volume, accélération ×1,5 à ×4 | ✅ vérifié |
+| **Inviter un ami** : lien de la room à copier ou partager | ✅ |
+| Tout se fait **à la souris** : menus, échanges, combats, profil, règles (le clavier marche toujours) | ✅ |
 | Audit automatique de l'interface (débordements, centrage, marges, texte coupé) | ✅ 0 problème |
 | Tests serveur : rooms, format 4G, random map, combats, atelier | ✅ `npm test` |
 
@@ -123,5 +127,8 @@ icônes Lucide (ISC). Un site public qui sert ces fichiers doit en fournir les s
 Aucun fichier de jeu n'est fourni : chacun utilise ses propres ROMs et sauvegardes.
 Projet de fans, sans lien avec Nintendo, Game Freak, Creatures ou The Pokémon Company.
 
-Touches en jeu : flèches = croix, X = A, Z = B, S = X, A = Y, Q/W = L/R, Entrée = Start, Retour = Select ·
-P = sortir/rentrer son Pokémon · C = profil · E = émote · R = règles de la room. L'écran du bas répond à la souris.
+Touches par défaut (modifiables dans **Réglages**, touche O) : flèches = croix, X = A, Z = B, S = X, A = Y, Q/W = L/R,
+Entrée = Start, Retour = Select · P = sortir/rentrer son Pokémon · C = profil · E = émote · R = règles de la room ·
+Espace = accélérer · I = inviter un ami. L'écran du bas se touche à la souris, comme un stylet.
+
+Publier une release sur GitHub met le site à jour automatiquement (`.github/workflows/publier-site.yml`).

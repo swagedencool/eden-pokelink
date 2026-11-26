@@ -150,22 +150,36 @@ export class PlatinumGame {
 
   // ---------------------------------------------------------------------------------------- ROM chargée
   /** Couleurs du personnage : écrites dans la copie de la ROM que l'émulateur lit ; visibles au prochain chargement de zone. */
+  /** Réécrit des couleurs dans la ROM chargée. Le cœur peut en garder plusieurs copies en mémoire
+   *  (fichier lu par l'interface libretro + copie de l'émulateur) : on les corrige toutes. */
   patchRom(offset, colors) {
     const h = this.host.heap;
-    if (this.romBase < 0) {
-      for (let i = 0; i < h.length - 0x4040; i += 4) {
-        if (h[i] !== this.header[0] || h[i + 12] !== this.header[12]) continue;
-        let ok = true;
-        for (let j = 0; j < 0x40 && ok; j++) ok = h[i + j] === this.header[j] && h[i + 0x4000 + j] === this.romTail[j];
-        if (ok) { this.romBase = i; break; }
-      }
-      if (this.romBase < 0) return false;
+    const isRom = i => {
+      if (h[i] !== this.header[0] || h[i + 12] !== this.header[12]) return false;
+      for (let j = 0; j < 0x40; j++) if (h[i + j] !== this.header[j] || h[i + 0x4000 + j] !== this.romTail[j]) return false;
+      return true;
+    };
+    if (!this.romBases || this.romHeapLen !== h.length || !this.romBases.every(isRom)) {
+      this.romBases = [];
+      for (let i = 0; i < h.length - 0x4040; i += 4) if (isRom(i)) this.romBases.push(i);
+      this.romHeapLen = h.length;
+      this.romBase = this.romBases[0] ?? -1;
     }
-    colors.forEach(([r, g, b], i) => {
+    const write = (buf, base) => colors.forEach(([r, g, b], i) => {
       if (!i) return;
-      const v = (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10), o = this.romBase + offset + 2 * i;
-      h[o] = v & 0xff; h[o + 1] = v >> 8;
+      const v = (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10), o = base + offset + 2 * i;
+      buf[o] = v & 0xff; buf[o + 1] = v >> 8;
     });
-    return true;
+    for (const base of this.romBases) write(h, base);
+    // DeSmuME lit aussi la ROM directement dans son fichier (système de fichiers en mémoire d'EmulatorJS)
+    let files = 0;
+    try {
+      const FS = this.host.gm.FS, name = this.host.ejs.fileName;
+      for (const path of [name, '/' + name].filter(Boolean)) {
+        const node = FS.analyzePath(path).exists && FS.lookupPath(path).node;
+        if (node?.contents && node.contents.length >= offset + 2 * colors.length) { write(node.contents, 0); files++; break; }
+      }
+    } catch {}
+    return this.romBases.length + files > 0;
   }
 }

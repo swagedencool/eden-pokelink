@@ -10,7 +10,7 @@ async def main():
             pg = await b.new_page(viewport={'width': w, 'height': hgt})
             await pg.route('https://**', lambda r: r.abort())
             for url in ['index.html', 'play.html', 'atelier.html']:
-                await pg.goto('http://127.0.0.1:3000/' + url); await pg.wait_for_timeout(500)
+                await pg.goto('http://127.0.0.1:8765/' + url); await pg.wait_for_timeout(500)
                 if url == 'play.html':
                     await pg.set_input_files('input[type=file] >> nth=0', '/home/claude/work/pt.nds'); await pg.wait_for_timeout(1500)
                 issues = await pg.evaluate(AUDIT)

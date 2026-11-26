@@ -4,6 +4,7 @@
 import { h, ease, setTO, clamp } from './core.js';
 import { icon } from './icons.js';
 import { COLOR_SLOTS } from './rom.js';
+import { settings, ACTIONS, SPEEDS, keyName } from './settings.js';
 
 const KIND = {
   battle: { label: 'Combattre', sub: 'Défier en combat', accent: 'var(--c-battle)', icon: 'swords' },
@@ -16,6 +17,13 @@ export const EMOTES = ['heart', 'music', 'laugh', 'thumbs-up', 'zap', 'circle-he
 export const SWATCHES = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899'];
 export const keycap = k => h('span.kc' + (k.length === 1 ? '.a' : ''), {}, k);
 const hint = (k, text) => h('span', {}, keycap(k), text);
+/** Souris : clic (et survol facultatif) sur un élément de panneau. Le clic ne traverse pas jusqu'au jeu. */
+export function tap(el, fn, hover) {
+  el.classList.add('pl-click');
+  el.addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); fn(e); });
+  if (hover) el.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') hover(e); });
+  return el;
+}
 const genderSign = g => (g === 'M' || g === 0 ? '♂' : g === 'F' || g === 1 ? '♀' : '');
 
 /** Base : ouverture / fermeture animées, couche de focus. */
@@ -53,9 +61,11 @@ export class InteractionMenu extends Panel {
       h('header', {}, ui.portrait(peer.profile, 44),
         h('div', {}, h('div.t', {}, peer.profile.name), h('small', { html: icon('map-pin', 12) + ui.app.placeName(peer.map) + ' · à 1 pas' }))),
       list, emotes,
-      h('div.pl-hints', {}, hint('A', 'Choisir'), hint('B', 'Fermer')));
+      h('div.pl-hints', {}, tap(hint('A', 'Choisir'), () => this.nav('A')), tap(hint('B', 'Fermer'), () => this.nav('B'))));
     super(ui, el);
     Object.assign(this, { peer, items, list, emotes, onPick, onEmote, onClose, sel: 0, mode: 'list', esel: 0 });
+    items.forEach((it, i) => tap(it.el, () => { this.sel = i; this.nav('A'); }, () => { this.sel = i; this.refresh(); }));
+    [...emotes.children].forEach((e, i) => tap(e, () => { this.esel = i; this.nav('A'); }, () => { this.esel = i; this.refresh(); }));
     this.refresh();
     // à côté du groupe (ami + soi) sans recouvrir aucun des deux : à gauche s'il y a la place, sinon à droite
     const a = ui.app.overlay.screen.get(peer.id) || { x: 384, y: 240 }, W = 304, H = 410, GAP = 56;
@@ -73,7 +83,7 @@ export class InteractionMenu extends Panel {
       else if (k === 'RIGHT') this.esel = (this.esel + 1) % EMOTES.length;
       else if (k === 'A') { this.onEmote(EMOTES[this.esel]); this.close(); this.onClose?.(); }
       else if (k === 'B') { this.mode = 'list'; this.list.style.display = ''; this.emotes.style.display = 'none'; }
-      this.refresh(); return true;
+      if (!this.closed) this.refresh(); return true;
     }
     if (k === 'UP') this.sel = (this.sel + this.items.length - 1) % this.items.length;
     else if (k === 'DOWN') this.sel = (this.sel + 1) % this.items.length;
@@ -103,8 +113,8 @@ export class RequestCard extends Panel {
     const sub = h('div.s', {}, dir === 'in' ? 'Réponds avant la fin du compte à rebours' : `En attente de la réponse de ${peer.profile.name}…`);
     const chips = h('div.chips', {}, TITLES.chips[kind].map(c => h('span.pl-mini', {}, c)));
     const acts = dir === 'in'
-      ? h('div.acts', {}, h('span.pl-btn.primary', { style: { '--accent': k.accent } }, keycap('A'), 'Accepter'), h('span.pl-btn', {}, keycap('B'), 'Refuser'))
-      : h('div.acts', {}, h('span.pl-btn', {}, keycap('B'), 'Annuler'));
+      ? h('div.acts', {}, tap(h('span.pl-btn.primary', { style: { '--accent': k.accent } }, keycap('A'), 'Accepter'), () => this.nav('A')), tap(h('span.pl-btn', {}, keycap('B'), 'Refuser'), () => this.nav('B')))
+      : h('div.acts', {}, tap(h('span.pl-btn', {}, keycap('B'), 'Annuler'), () => this.nav('B')));
     const el = h('div.pl-request.glass', { style: { '--accent': k.accent } }, ring, h('div.body', {}, title, sub, chips), acts);
     super(ui, el);
     Object.assign(this, { dir, kind, peer, timeout, onAccept, onDecline, onCancel, title, sub, ringArc: ring.querySelector('circle:last-child'), C, t0: ui.anim.now, acts });
@@ -157,7 +167,20 @@ export class TradePanel extends Panel {
     Object.assign(this, { peer, mine, theirs, mineEls, theirEls, steps, sum, btn, back, onPick, onConfirm, onCancel,
       cur: 0, pick: null, rcur: 0, rpick: null, confirmed: false, rconfirmed: false, phase: 'pick' });
     this.bg = h('div.pl-modal-bg');
+    mineEls.forEach((e, i) => tap(e, () => this.clickMine(i), () => {
+      if (this.phase === 'pick' && this.pick === null && this.cur !== i) { this.cur = i; this.onPick?.(i, 'cursor'); this.refresh(); }
+    }));
+    tap(btn, () => { if (this.phase === 'confirm') this.nav('A'); });
+    tap(back, () => this.nav('B'));
     this.refresh();
+  }
+  /** Clic sur un de mes Pokémon : le proposer (ou changer d'avis tant que je n'ai pas confirmé). */
+  clickMine(i) {
+    if (this.phase === 'swap' || this.phase === 'done' || this.confirmed) return;
+    if (this.phase === 'confirm') { this.phase = 'pick'; this.pick = null; }
+    if (this.pick === i) { this.pick = null; this.onPick?.(null); this.refresh(); return; }
+    this.cur = i; this.onPick?.(i, 'cursor');
+    this.pick = null; this.nav('A');
   }
   open() {
     this.ui.layer.append(this.bg);
@@ -295,7 +318,7 @@ export class ProfilePanel extends Panel {
     const buddyRow = h('div.pl-row', {}, h('label', {}, 'Pokémon compagnon'), buddies);
     const el = h('div.pl-profile.glass', {},
       h('div.pl-preview', {}, h('div.floor'), cv, nm, h('small', {}, 'Ce que tes amis voient en jeu'),
-        h('div.foot', {}, h('div.pl-note', { html: icon('sparkles', 14) + '<span>Visible tout de suite par tes amis, et sur ton écran au prochain changement de zone</span>' }), acts)),
+        h('div.foot', {}, h('div.pl-note', { html: icon('sparkles', 14) + '<span>Visible tout de suite par tes amis ; sur ton écran dès que tu passes une porte ou ouvres un menu</span>' }), acts)),
       h('div.pl-form', {},
         h('h3', { html: icon('palette', 20) + ' Mon personnage' }),
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 172px', gap: '4px' } }, nameRow, baseRow),
@@ -304,15 +327,44 @@ export class ProfilePanel extends Panel {
     Object.assign(this, { draft, cv, nm, input, seg, buddies, save, cancel, team, onSave, onCancel, r: 0, cols: {}, colorRows, act: 1 });
     this.fixed = { name: { id: 'name', el: nameRow }, base: { id: 'base', el: baseRow }, buddy: { id: 'buddy', el: buddyRow }, actions: { id: 'actions', el: acts } };
     this.ctx = cv.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
+    this.picker = h('input', { type: 'color', tabindex: '-1', style: { position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', left: '50%', top: '50%' } });
+    el.append(this.picker);
+    this.picker.addEventListener('input', () => this.pickCustom(this.picker.value));
+    // souris : chaque ligne se sélectionne au clic, chaque choix se fait directement
+    const go = id => { const i = this.rows.findIndex(r => r.id === id); if (i >= 0) this.r = i; };
+    tap(nameRow, () => { go('name'); this.refresh(); this.input.focus(); });
+    this.input.addEventListener('focus', () => { if (this.rows[this.r].id !== 'name') { go('name'); this.refresh(); } });
+    this.input.addEventListener('input', () => this.refresh());
+    [...seg.children].forEach((x, i) => tap(x, () => { go('base'); this.setBase(i === 0 ? 'lucas' : 'aurore'); this.refresh(); }));
+    tap(save, () => { this.close(); this.onSave(this.draft); });
+    tap(cancel, () => { this.close(); this.onCancel?.(); });
     this.buildColorRows();
+    [...buddies.children].forEach((b, i) => tap(b, () => { go('buddy'); if (this.team[i]) this.draft.buddy = this.team[i].species; this.refresh(); }));
+    this.refresh();
+  }
+  setBase(base) { if (base !== this.draft.base) { this.draft.base = base; this.draft.colors = {}; this.buildColorRows(); } }
+  pickCustom(hex) {
+    const row = this.customRow; if (!row) return;
+    this.cols[row.slot.id] = SWATCHES.length + 1;
+    row.sw[SWATCHES.length + 1].style.background = hex;
+    this.draft.colors = { ...this.draft.colors, [row.slot.id]: hex };
     this.refresh();
   }
   buildColorRows() {
     const rows = COLOR_SLOTS[this.draft.base].map(s => {
-      const sw = [h('i', { style: { background: this.ui.slotOriginal(this.draft.base, s) }, title: 'Origine' }), ...SWATCHES.map(c => h('i', { style: { background: c } })), h('i.custom')];
-      const cur = this.draft.colors?.[s.id];
-      this.cols[s.id] = cur ? Math.max(0, SWATCHES.indexOf(cur) + 1) : 0;
-      return { id: 'color:' + s.id, el: h('div.pl-row', {}, h('label', {}, s.label), h('div.pl-swatches', {}, sw)), slot: s, sw };
+      const cur = this.draft.colors?.[s.id], custom = cur && !SWATCHES.includes(cur);
+      const sw = [h('i', { style: { background: this.ui.slotOriginal(this.draft.base, s) }, title: 'Couleur d’origine' }), ...SWATCHES.map(c => h('i', { style: { background: c } })),
+        h('i.custom', { title: 'Autre couleur…', style: custom ? { background: cur } : {} })];
+      this.cols[s.id] = !cur ? 0 : custom ? SWATCHES.length + 1 : SWATCHES.indexOf(cur) + 1;
+      const row = { id: 'color:' + s.id, el: h('div.pl-row', {}, h('label', {}, s.label), h('div.pl-swatches', {}, sw)), slot: s, sw };
+      sw.forEach((x, i) => tap(x, () => {
+        this.r = this.rows.indexOf(row);
+        if (i === SWATCHES.length + 1) { this.customRow = row; this.picker.value = /^#[0-9a-f]{6}$/i.test(this.draft.colors?.[s.id] || '') ? this.draft.colors[s.id] : '#ffffff'; this.picker.click(); return this.refresh(); }
+        this.cols[s.id] = i;
+        this.draft.colors = { ...this.draft.colors, [s.id]: i === 0 ? undefined : SWATCHES[i - 1] };
+        this.refresh();
+      }));
+      return row;
     });
     this.colorRows.replaceChildren(...rows.map(r => r.el));
     const f = this.fixed;
@@ -335,10 +387,7 @@ export class ProfilePanel extends Panel {
     const row = this.rows[this.r];
     if (k === 'UP') this.r = Math.max(0, this.r - 1);
     else if (k === 'DOWN') this.r = Math.min(this.rows.length - 1, this.r + 1);
-    else if (row.id === 'base' && (k === 'LEFT' || k === 'RIGHT')) {
-      const base = k === 'LEFT' ? 'lucas' : 'aurore';
-      if (base !== this.draft.base) { this.draft.base = base; this.draft.colors = {}; this.buildColorRows(); }
-    } else if (row.slot && (k === 'LEFT' || k === 'RIGHT')) {
+    else if (row.id === 'base' && (k === 'LEFT' || k === 'RIGHT')) this.setBase(k === 'LEFT' ? 'lucas' : 'aurore'); else if (row.slot && (k === 'LEFT' || k === 'RIGHT')) {
       const c = clamp(this.cols[row.slot.id] + (k === 'LEFT' ? -1 : 1), 0, SWATCHES.length);
       this.cols[row.slot.id] = c;
       this.draft.colors = { ...this.draft.colors, [row.slot.id]: c === 0 ? undefined : SWATCHES[c - 1] };
@@ -400,6 +449,15 @@ export class RulesPanel extends Panel {
     super(ui, el);
     Object.assign(this, { rules, places, onChange, soulSw, capSw, seg, val, capInfo, links, r: 0 });
     this.rowEls = [...el.querySelectorAll('.pl-rule')];
+    const pick = i => { this.r = Math.max(0, this.visibleRows.indexOf(i)); };
+    tap(this.rowEls[0], () => { pick(0); this.nav('A'); });
+    tap(this.rowEls[1], () => { pick(1); this.nav('A'); });
+    [...seg.children].forEach((x, i) => tap(x, () => { pick(2); this.onChange({ capMode: i === 0 ? 'auto' : 'manual' }); this.refresh(); }));
+    const [less, , more] = val.children;
+    tap(less, () => { pick(3); this.nav('LEFT'); }); tap(more, () => { pick(3); this.nav('RIGHT'); });
+    const [fa, , fb] = el.querySelector('.foot').children;
+    tap(fa, () => this.nav('A')); tap(fb, () => this.nav('B'));
+    el.append(tap(h('span.pl-x', { title: 'Fermer', html: icon('x', 18) }), () => this.nav('B')));
     this.refresh();
   }
   get visibleRows() { const s = this.rules.state; return [0, 1, ...(s.levelCap ? [2] : []), ...(s.levelCap && s.capMode === 'manual' ? [3] : [])]; }
@@ -430,4 +488,121 @@ export class RulesPanel extends Panel {
     else if (k === 'B') { this.close(); return true; }
     this.refresh(); return true;
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+/** Réglages : son, vitesse du jeu et touches. Pensé pour la souris (tout est cliquable), Échap ferme. */
+export class SettingsPanel extends Panel {
+  constructor(ui, { turbo, onTurbo, capture }) {
+    const tabs = h('div.pl-tabs', {}, h('span', {}, h('span', { html: icon('volume-2', 15) }), 'Son et vitesse'), h('span', {}, h('span', { html: icon('keyboard', 15) }), 'Touches'));
+    const body = h('div.pl-set-body');
+    const el = h('div.pl-settings.glass', {},
+      h('div.head', {}, h('span.hic', { html: icon('settings', 22) }),
+        h('div', {}, h('h3', {}, 'Réglages'), h('small', {}, 'Gardés dans ce navigateur, pour toutes tes parties')), tabs),
+      body,
+      h('div.foot', {}, h('small.pl-set-msg'), h('span.pl-btn', {}, 'Fermer')));
+    super(ui, el);
+    Object.assign(this, { tabs, body, turbo, onTurbo, capture, tab: 0, waiting: null });
+    this.msg = el.querySelector('.pl-set-msg');
+    [...tabs.children].forEach((t, i) => tap(t, () => { this.tab = i; this.render(); }));
+    tap(el.querySelector('.foot .pl-btn'), () => this.nav('B'));
+    el.append(tap(h('span.pl-x', { title: 'Fermer', html: icon('x', 18) }), () => this.nav('B')));
+    this.off = settings.on('change', () => this.render());
+    this.render();
+  }
+  render() {
+    if (this.closed) return;
+    [...this.tabs.children].forEach((t, i) => t.classList.toggle('on', i === this.tab));
+    this.body.replaceChildren(this.tab === 0 ? this.general() : this.keys());
+  }
+  general() {
+    const st = settings.state, vol = Math.round(st.volume * 100);
+    const range = h('input.pl-range', { type: 'range', min: 0, max: 100, step: 1, value: vol, 'aria-label': 'Volume' });
+    range.style.setProperty('--v', (st.muted ? 0 : vol) + '%');
+    const pct = h('b.pl-pct', {}, st.muted ? 'Muet' : vol + ' %');
+    range.addEventListener('input', () => {
+      const v = +range.value;
+      range.style.setProperty('--v', v + '%'); pct.textContent = v + ' %';
+      settings.state.volume = v / 100; settings.state.muted = v === 0;
+      clearTimeout(this.saveT); this.saveT = setTimeout(() => settings.save(), 150);
+      this.ui.app.applySound?.();
+    });
+    const mute = tap(h('span.pl-iconbtn' + (st.muted ? '.on' : ''), { title: st.muted ? 'Remettre le son' : 'Couper le son', html: icon(st.muted ? 'volume-x' : 'volume-2', 18) }),
+      () => settings.set({ muted: !st.muted, volume: st.volume || 0.6 }));
+    const on = this.turbo();
+    const sw = tap(h('span.pl-switch' + (on ? '.on' : ''), {}, h('i')), () => { this.onTurbo(!this.turbo()); this.render(); });
+    const speeds = h('div.pl-seg.speeds', {}, SPEEDS.map(x => tap(h('span' + (st.turboSpeed === x ? '.on' : ''), {}, '×' + String(x).replace('.', ',')),
+      () => { settings.set({ turboSpeed: x }); if (!this.turbo()) this.onTurbo(true); })));
+    return h('div.rows', {},
+      h('div.pl-rule', {}, h('span.ic', { html: icon(st.muted || !st.volume ? 'volume-x' : st.volume < 0.5 ? 'volume-1' : 'volume-2', 18) }),
+        h('div.txt', {}, h('b', {}, 'Volume du jeu'), h('small', {}, 'Le son de l’émulateur, sur cet ordinateur seulement')),
+        h('div.pl-vol', {}, range, pct, mute)),
+      h('div.pl-rule', {}, h('span.ic', { html: icon('fast-forward', 18) }),
+        h('div.txt', {}, h('b', {}, 'Accélérer le jeu'), h('small', {}, `Touche ${settings.label('turbo')} pour l’activer ou le couper en jeu. Tes amis ne sont pas accélérés.`)), sw),
+      h('div.pl-rule.sub', {}, h('div.txt', {}, h('b', {}, 'Vitesse en accéléré'), h('small', {}, 'Si ton ordinateur n’arrive pas à suivre, le jeu va aussi vite qu’il peut')), speeds),
+      h('div.pl-tip', { html: icon('mouse-pointer-click', 16) + '<span>Astuce : tout se fait à la souris. Clique sur un ami dans le jeu (la bulle « Interagir ») ou sur les boutons à droite.</span>' }));
+  }
+  keys() {
+    const col = (title, group) => h('div.pl-keycol', {}, h('h4', {}, title),
+      ...ACTIONS.filter(a => a.group === group).map(a => {
+        const waiting = this.waiting === a.id;
+        return tap(h('div.pl-keyrow' + (waiting ? '.wait' : ''), {}, h('span', {}, a.label), h('span.pl-keycap', {}, waiting ? 'Appuie sur une touche…' : settings.label(a.id))),
+          () => this.listen(a));
+      }));
+    return h('div.pl-keys2', {}, col('Console', 'ds'), col('PokéLink', 'pl'),
+      h('div.pl-keyfoot', {}, h('small', {}, 'Clique sur une action, puis appuie sur la nouvelle touche. Échap pour annuler.'),
+        tap(h('span.pl-btn', {}, h('span', { html: icon('rotate-ccw', 15) }), 'Touches par défaut'), () => { settings.resetKeys(); this.say('Touches remises par défaut'); })));
+  }
+  listen(a) {
+    this.waiting = a.id; this.render();
+    this.capture(code => {
+      this.waiting = null;
+      if (code === 'Escape') { this.render(); return; }
+      const other = settings.bind(a.id, code);
+      const o = other && ACTIONS.find(x => x.id === other);
+      this.say(o ? `${keyName(code)} → ${a.label} · « ${o.label} » prend ${settings.label(o.id)}` : `${a.label} : ${keyName(code)}`);
+      this.render();
+    });
+  }
+  say(t) { this.msg.textContent = t; clearTimeout(this.msgT); this.msgT = setTimeout(() => (this.msg.textContent = ''), 4000); }
+  nav(k) {
+    if (k === 'B') { this.off?.(); this.close(); return true; }
+    if (k === 'LEFT' || k === 'RIGHT') { this.tab = k === 'LEFT' ? 0 : 1; this.render(); }
+    return true;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+/** Inviter un ami : le lien de la room, à copier ou partager. */
+export class InvitePanel extends Panel {
+  constructor(ui, { code, link }) {
+    const field = h('input.pl-input.mono', { value: link, readonly: true, spellcheck: 'false', 'aria-label': 'Lien de la room' });
+    const copy = h('span.pl-btn.primary', { style: { '--accent': 'var(--brand-a)' } }, h('span', { html: icon('copy', 16) }), h('span', {}, 'Copier le lien'));
+    const share = navigator.share ? h('span.pl-btn', {}, h('span', { html: icon('share-2', 16) }), 'Partager…') : null;
+    const el = h('div.pl-invite.glass', {},
+      h('div.head', {}, h('span.hic', { html: icon('user-plus', 22) }), h('div', {}, h('h3', {}, 'Inviter un ami'), h('small', {}, 'Envoie-lui ce lien : il arrive directement dans ta room'))),
+      h('div.pl-code', {}, ...code.split('').map(c => h('span', {}, c))),
+      h('div.pl-linkrow', {}, field, copy),
+      h('ol.pl-steps-txt', {},
+        h('li', {}, 'Ton ami ouvre le lien.'),
+        h('li', {}, 'Il charge sa ROM Pokémon Platine (et sa sauvegarde s’il en a une).'),
+        h('li', {}, 'Il clique sur « Lancer la partie » : il apparaît dans ton jeu.')),
+      h('div.foot', {}, share, tap(h('span.pl-btn', {}, 'Fermer'), () => this.nav('B'))));
+    super(ui, el);
+    Object.assign(this, { field, copy, link });
+    tap(field, () => field.select());
+    tap(copy, () => this.doCopy());
+    if (share) tap(share, () => navigator.share({ title: 'Rejoins ma room PokéLink', text: `Rejoins ma room PokéLink (code ${code})`, url: link }).catch(() => {}));
+    el.append(tap(h('span.pl-x', { title: 'Fermer', html: icon('x', 18) }), () => this.nav('B')));
+  }
+  async doCopy() {
+    let ok = false;
+    try { await navigator.clipboard.writeText(this.link); ok = true; } catch {
+      this.field.select(); try { ok = document.execCommand('copy'); } catch {}
+    }
+    this.copy.replaceChildren(h('span', { html: icon(ok ? 'check' : 'copy', 16) }), h('span', {}, ok ? 'Lien copié !' : 'Copie le lien ci-contre'));
+    this.copy.classList.toggle('done', ok);
+    clearTimeout(this.t); this.t = setTimeout(() => !this.closed && this.copy.replaceChildren(h('span', { html: icon('copy', 16) }), h('span', {}, 'Copier le lien')), 2500);
+  }
+  nav(k) { if (k === 'B') this.close(); else if (k === 'A') this.doCopy(); return true; }
 }
