@@ -7,9 +7,10 @@ import { RemotePlayer, Follower } from './world.js';
 import { Overlay } from './overlay.js';
 import { InputRouter } from './input.js';
 import { icon } from './icons.js';
-import { InteractionMenu, RequestCard, TradePanel, VersusCard, ProfilePanel, RulesPanel, SettingsPanel, InvitePanel, Toasts, keycap, tap } from './ui.js';
+import { InteractionMenu, RequestCard, TradePanel, VersusCard, ProfilePanel, RulesPanel, SettingsPanel, InvitePanel, TeamPanel, SavePanel, Toasts, keycap, tap } from './ui.js';
 import { settings } from './settings.js';
 import { ScreenFilter } from './emu/screen.js';
+import { skinPalette } from './rom.js';
 import { RoomRules } from './rules.js';
 import { BattleView } from './battle-ui.js';
 import { decodeParty, toBattleSet, withPartyHP, boxToParty, PARTY } from './pk4.js';
@@ -106,8 +107,8 @@ export class PokeLinkApp {
     this.saveMain = tap(h('span.main', { title: 'Enregistrer ta partie et télécharger ton fichier de sauvegarde (.sav)' }, h('span.ic', { html: icon('download', 16) }), h('span', {}, 'Sauvegarder')), () => this.save(false));
     this.saveMore = tap(h('span.more', { title: 'Plus d’options', html: icon('chevron-right', 14) }), () => this.toggleSaveMenu());
     this.saveMenu = h('div.pl-savemenu.glass', { hidden: true },
-      tap(h('div.opt', {}, h('span.ic', { html: icon('download', 16) }), h('div', {}, h('b', {}, 'Sauvegarder'), h('small', {}, 'Télécharge ton fichier .sav, la partie continue'))), () => this.save(false)),
-      tap(h('div.opt.quit', {}, h('span.ic', { html: icon('door-open', 16) }), h('div', {}, h('b', {}, 'Sauvegarder et quitter'), h('small', {}, 'Télécharge ton fichier .sav puis quitte la room'))), () => this.save(true)),
+      tap(h('div.opt', {}, h('span.ic', { html: icon('download', 16) }), h('div', {}, h('b', {}, 'Sauvegarder'), h('small', {}, 'Sauvegarde d’abord dans le jeu, puis télécharge ton .sav'))), () => this.save(false)),
+      tap(h('div.opt.quit', {}, h('span.ic', { html: icon('door-open', 16) }), h('div', {}, h('b', {}, 'Sauvegarder et quitter'), h('small', {}, 'Sauvegarde dans le jeu, télécharge ton .sav, puis quitte'))), () => this.save(true)),
       this.quitOpt = tap(h('div.opt.nosave', {}, h('span.ic', { html: icon('x', 16) }), h('div', {}, h('b', {}, 'Quitter sans sauvegarder'), h('small', {}, 'Ce que tu as fait depuis ta dernière sauvegarde est perdu'))), e => this.quitNoSave(e)));
     this.saveBtn = h('div.pl-save', {}, this.saveMain, this.saveMore, this.saveMenu);
     document.addEventListener('pointerdown', e => { if (!this.saveMenu.hidden && !e.target.closest?.('.pl-save')) this.toggleSaveMenu(false); }, true);
@@ -186,8 +187,16 @@ export class PokeLinkApp {
     this.gameEl.addEventListener('click', e => {
       if (this.ui.active || this.busy || e.target.closest('.pl-click, .glass:not(.pl-tag)')) return;
       const p = hit(e);
-      if (p) { e.stopPropagation(); this.openMenu(p); }
+      if (p) { e.stopPropagation(); this.openMenu(p); return; }
+      this.topClick(e);
     });
+    // clic droit sur l'écran du haut : bouton B (fermer, revenir)
+    this.gameEl.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (this.ui.active || e.target.closest('.glass:not(.pl-tag)')) return;
+      this.walk = null; this.input.auto = null; this.input.taps.set('B', 6);
+    });
+    this.input.on('manual', () => { this.walk = null; });
     this.gameEl.addEventListener('mousemove', e => {
       const over = !this.ui.active && !e.target.closest('.glass:not(.pl-tag)') && hit(e);
       this.gameEl.classList.toggle('pl-overpeer', !!over);
@@ -220,10 +229,11 @@ export class PokeLinkApp {
     n.on('req', m => this.onRequest(peer(m.from), m));
     n.on('res', m => this.onResponse(m));
     n.on('trade', m => this.onTrade(m));
+    n.on('status', m => { const p = this.peers.get(m.from); if (p) { p.status = m.status || null; this.refreshSide(true); } });
     n.on('battle', m => this.onBattle(m));
     n.on('ping', m => (this.pingEl.textContent = m.ms + ' ms'));
   }
-  teamSummary() { return this.me.team.map(({ species, name, level, gender, hp, maxhp }) => ({ species, name, level, gender, hp, maxhp })); }
+  teamSummary() { return this.me.team.map(({ species, name, level, gender, hp, maxhp, moves, item, ability, nature, shiny }) => ({ species, name, level, gender, hp, maxhp, moves, item, ability, nature, shiny })); }
 
   onProfile(p, m) {
     const old = p.profile;
@@ -401,9 +411,9 @@ export class PokeLinkApp {
     this.ui.toasts.show({ ic: win ? 'crown' : 'shield', accent: win ? '#fbbf24' : 'var(--c-battle)', title: win ? 'Victoire enregistrée dans ta partie' : 'Défaite enregistrée dans ta partie', sub: lines.join(' · '), dur: 4200 });
   }
   showTeam(peer, menu) {
-    menu.close();
-    const team = peer.team || [];
-    this.ui.toasts.show({ ic: 'eye', accent: 'var(--c-team)', title: `Équipe de ${peer.profile.name}`, sub: team.map(m => `${m.name} Nv.${m.level}`).join(' · '), dur: 3600 });
+    menu?.close();
+    this.ui.open(new TeamPanel(this.ui, { peer, gd: this.gd,
+      onTrade: () => this.sendRequest('trade', peer), onBattle: () => this.sendRequest('battle', peer) }), { from: { s: 0.94, o: 0, y: 12 }, dur: 300 });
   }
   sendEmote(kind) { this.net.send('emote', { kind }); this.overlay.bubble('me', kind, this.anim.now); }
 
@@ -439,6 +449,60 @@ export class PokeLinkApp {
     if (this.rulesPanel && !this.rulesPanel.closed) this.rulesPanel.refresh();
   }
 
+  /** Mon activité, envoyée aux amis quand elle change : en combat (contre qui), en échange, occupé (menu, combat du jeu…). */
+  updateStatus(now) {
+    const s = this.game.state?.();
+    if (s && s.field) this.fieldAt = now;
+    let st = null;
+    if (this.battle) st = { kind: 'battle', with: this.battle.peer?.profile?.name || this.battle.opponent || '' };
+    else if (this.trade?.panel && !this.trade.panel.closed) st = { kind: 'trade', with: this.trade.peer?.profile?.name || '' };
+    else if (this.fieldAt && now - this.fieldAt > 1500) st = { kind: 'busy' };
+    const key = st ? st.kind + '|' + (st.with || '') : '';
+    if (key !== this.statusKey || now - (this.statusSent || 0) > 8000) {      // renvoyé de temps en temps pour les arrivants
+      this.statusKey = key; this.statusSent = now; this.myStatus = st;
+      this.net.send('status', { status: st });
+    }
+  }
+  /** Souris sur l'écran du haut : dans le jeu, marcher jusqu'à la case cliquée (et parler si on bute sur quelqu'un) ;
+   *  pendant un dialogue ou un menu du jeu, un clic fait avancer (bouton A). */
+  topClick(e) {
+    const s = this.game.state?.(); if (!s) return;
+    const r = this.gameEl.getBoundingClientRect(), k = r.width / 256;
+    const x = (e.clientX - r.left) / k, y = (e.clientY - r.top) / k;
+    if (!s.field) { this.input.taps.set('A', 6); return; }
+    let best = null, bd = 1e9;
+    for (let dz = -9; dz <= 9; dz++) for (let dx = -11; dx <= 11; dx++) {
+      const p = this.overlay.screenOf(s, { x: (s.tx + dx) * 16 + 8, y: s.y, z: (s.tz + dz) * 16 + 8 });
+      const d = Math.hypot(x - p.x, y - (p.y - 6 * (p.scale || 1)));
+      if (d < bd) { bd = d; best = { dx, dz, p }; }
+    }
+    if (!best || bd > 16) return;
+    if (!best.dx && !best.dz) { this.input.taps.set('A', 6); return; }           // clic sur soi : bouton A
+    this.walk = { tx: s.tx + best.dx, tz: s.tz + best.dz, last: s.tx + ',' + s.tz, still: 0, alt: false, tries: 0 };
+    // petit repère à l'endroit visé
+    const m = h('div.pl-walkmark', { style: { left: best.p.x * 3 + 'px', top: (best.p.y - 6 * (best.p.scale || 1)) * 3 + 'px' } });
+    this.domLayer.append(m); setTimeout(() => m.remove(), 700);
+  }
+  /** Une image : avance vers la case visée, contourne si bloqué, parle si on bute juste devant la cible. */
+  stepWalk(s) {
+    const w = this.walk; if (!w) return;
+    const stop = () => { this.walk = null; this.input.auto = null; };
+    if (!s || !s.field || this.ui.active) return stop();
+    const dx = w.tx - s.tx, dz = w.tz - s.tz;
+    if (!dx && !dz) return stop();
+    const here = s.tx + ',' + s.tz;
+    if (here !== w.last) { w.last = here; w.still = 0; w.tries = 0; } else w.still++;
+    if (w.still > 22) {                                                  // bloqué : on essaie l'autre axe
+      w.still = 0; w.tries++; w.alt = !w.alt;
+      if (Math.abs(dx) + Math.abs(dz) === 1 || w.tries > 2) {             // juste devant la cible (ou impasse) : on parle
+        if (Math.abs(dx) + Math.abs(dz) === 1) this.input.taps.set('A', 6);
+        return stop();
+      }
+    }
+    const xFirst = Math.abs(dx) >= Math.abs(dz);
+    const useX = dx && (!dz || (xFirst !== w.alt));
+    this.input.auto = new Set([useX ? (dx > 0 ? 'RIGHT' : 'LEFT') : (dz > 0 ? 'DOWN' : 'UP')]);
+  }
   /** L'ami le plus proche sur la même carte (pour le bouton « Interagir »). */
   nearestPeer() {
     const l = this.me.last; let best = null, bd = 1e9;
@@ -467,8 +531,14 @@ export class PokeLinkApp {
     this.saveBtn.classList.toggle('open', open);
   }
   /** Sauvegarde : le jeu écrit son fichier, gardé dans le navigateur et téléchargé ; quit : retour à l'accueil. */
-  async save(quit) {
+  /** Bouton Sauvegarder : d'abord la fenêtre qui rappelle de sauvegarder dans le jeu. */
+  save(quit) {
     this.toggleSaveMenu(false);
+    if (this.ui.active || this.saving) return;
+    this.checkSave?.();
+    this.ui.open(new SavePanel(this.ui, { quit, savedAt: () => this.savedAt?.(), startKey: settings.label('START'), onDownload: () => this.download(quit) }), { from: { s: 0.94, o: 0, y: 12 }, dur: 280 });
+  }
+  async download(quit) {
     if (this.saving) return;
     this.saving = true; this.saveBtn.classList.add('busy');
     try {
@@ -501,13 +571,15 @@ export class PokeLinkApp {
   applyVideo() {
     const st = settings.state;
     this.topScreen.setMode(st.filter); this.botScreen.setMode(st.filter);
-    if (this._eco !== st.eco) { this._eco = st.eco; this.host?.setCoreOption('desmume_frameskip', st.eco ? 1 : 0); }
+    if (this._eco !== st.eco) { this._eco = st.eco; if (this.host) { this.host.options = { ...(this.host.options || {}), frameskip: st.eco ? 1 : 0 }; if (!this.turboOn) this.host.setCoreOption('desmume_frameskip', st.eco ? 1 : 0); } }
   }
   /** Puces de l'en-tête et touches affichées : suivent les réglages (touches choisies, son, turbo). */
   refreshControls() {
     const st = settings.state, vol = settings.effectiveVolume;
     this.turboChip.classList.toggle('on', this.turboOn);
-    this.turboChip.lastChild.textContent = this.turboOn ? '×' + String(st.turboSpeed).replace('.', ',') : '×1';
+    const real = this.turboOn && this.realSpeed > 0.2 ? Math.min(this.realSpeed, st.turboSpeed) : null;
+    this.turboChip.lastChild.textContent = this.turboOn ? '×' + (real ? real.toFixed(1) : String(st.turboSpeed)).replace('.', ',') : '×1';
+    this.turboChip.title = this.turboOn && this.realSpeed ? `Vitesse réelle : ×${this.realSpeed.toFixed(1).replace('.', ',')} (si elle reste sous la vitesse choisie, ton ordinateur est à fond)` : 'Accélérer le jeu';
     this.soundChip.firstChild.innerHTML = icon(vol === 0 ? 'volume-x' : vol < 0.5 ? 'volume-1' : 'volume-2', 15);
     this.soundChip.classList.toggle('off', vol === 0);
     for (const [a, el] of Object.entries(this.keyEls)) el.firstChild.textContent = settings.label(a);
@@ -527,6 +599,8 @@ export class PokeLinkApp {
     const before = this.me.profile;
     this.me.profile = { ...draft, colors: Object.fromEntries(Object.entries(draft.colors || {}).filter(([, v]) => v)) };
     this.net.send('profile', { profile: this.me.profile, team: this.teamSummary() });
+    // Lucas ↔ Aurore : le personnage change aussi dans la partie (gardé à la prochaine sauvegarde dans le jeu)
+    if (draft.base !== this.game.playerBase) this.game.setGender?.(draft.base === 'aurore' ? 1 : 0);
     this.applyOwnPalette();
     try { localStorage.setItem('pokelink.colors', JSON.stringify(this.me.profile.colors)); localStorage.setItem('pokelink.name', this.me.profile.name); } catch {}
     if (this.me.follower.out && draft.buddy !== before.buddy) { this.me.follower.species = draft.buddy; this.sendFollower(true); }
@@ -537,17 +611,31 @@ export class PokeLinkApp {
   /** Son propre personnage : sa palette est réécrite dans la ROM chargée ; le jeu la relit au prochain chargement
    *  de zone (porte, menu plein écran…). */
   applyOwnPalette() {
-    const a = this.assets.avatars[this.me.profile.base];
-    if (!a || this.me.profile.base !== this.game.playerBase) return false;
-    return this.game.patchRom(a.paletteRomOffset, this.lib.avatarPalette(this.me.profile.base, this.me.profile.colors || {}), writePalette);
+    const base = this.me.profile.base, a = this.assets.avatars[base];
+    if (!a || base !== this.game.playerBase) return false;
+    const pal = this.lib.avatarPalette(base, this.me.profile.colors || {});
+    let ok = this.game.patchRom(a.paletteRomOffset, pal, writePalette);
+    // à vélo, en surf, à la pêche… et de dos en combat
+    for (const t of this.assets.skins?.[base] || []) ok = this.game.patchRom(t.offset, skinPalette(t, a.palette, pal), writePalette) && ok;
+    return ok;
   }
+
 
   // ---------------------------------------------------------------- boucle
   /** Appelée une fois par frame affichée. now en ms. */
   update(now) {
     const t0 = performance.now();
+    if (!this.stT || now - this.stT > 500) { this.stT = now; this.updateStatus(now); }
+    // vitesse réelle du jeu (images du jeu par seconde / 60), affichée sur le bouton d'accélération
+    if (!this.rate || now - this.rate.t >= 1000) {
+      const f = this.host?.frame?.() ?? 0;
+      if (this.rate && now > this.rate.t) this.realSpeed = (f - this.rate.f) / ((now - this.rate.t) / 1000) / 60;
+      this.rate = { t: now, f };
+      if (this.turboOn) this.refreshControls();
+    }
     this.anim.now = now;
     const s = this.game.state();
+    if (this.walk) this.stepWalk(s);
     if (s) {
       const l = this.me.last;
       const d = l && l.map === s.map ? Math.abs(s.x - l.x) + Math.abs(s.z - l.z) : 0;
@@ -587,7 +675,7 @@ export class PokeLinkApp {
     for (const p of this.peers.values()) {
       if (!p.pos) continue;
       items.push({ id: p.id, kind: 'avatar', sheet: this.lib.avatar(p.profile.base, p.profile.colors), frame: p.frame, pos: p.pos, map: p.map,
-        tag: { name: p.profile.name, color: accentOf(p.profile), duo: this.duo.has(p.id) } });
+        tag: { name: p.profile.name, color: accentOf(p.profile), duo: this.duo.has(p.id), status: p.status } });
       if (p.follower?.out && !p.follower.hidden) items.push(this.followerItem(p.id + ':f', p.follower, p.map));
     }
     if (this.me.follower.out && !this.me.follower.hidden) items.push(this.followerItem('me:f', this.me.follower, this.me.follower.leaderMap));
@@ -611,8 +699,8 @@ export class PokeLinkApp {
 
   refreshSide(force = false) {
     const rows = [{ id: 'me', profile: this.me.profile, map: this.me.last?.map, follower: this.me.follower, me: true }];
-    for (const p of this.peers.values()) rows.push({ id: p.id, profile: p.profile, map: p.map, follower: p.follower, dist: this.me.last && p.map === this.me.last.map ? Math.abs(p.tx - this.me.last.tx) + Math.abs(p.tz - this.me.last.tz) : null });
-    const sig = JSON.stringify(rows.map(r => [r.profile.name, r.profile.base, r.profile.colors, r.map, r.follower?.out, r.follower?.species, r.dist]));
+    for (const p of this.peers.values()) rows.push({ id: p.id, profile: p.profile, map: p.map, follower: p.follower, status: p.status, dist: this.me.last && p.map === this.me.last.map ? Math.abs(p.tx - this.me.last.tx) + Math.abs(p.tz - this.me.last.tz) : null });
+    const sig = JSON.stringify(rows.map(r => [r.profile.name, r.profile.base, r.profile.colors, r.map, r.follower?.out, r.follower?.species, r.dist, r.status?.kind, r.status?.with]));
     if (!force && sig === this._sideSig) return;
     this._sideSig = sig;
     this.countEl.textContent = rows.length;
@@ -620,7 +708,8 @@ export class PokeLinkApp {
       this.ui.portrait(r.profile, 44),
       h('div.who', {},
         h('div.name', {}, h('span.nm', {}, r.profile.name), r.me ? h('span.you', {}, 'TOI') : null, this.duo.has(r.id) ? h('span', { style: { color: 'var(--c-duo)' }, html: icon('link-2', 14) }) : null),
-        h('div.where', { html: icon('map-pin', 12) + (r.map !== undefined ? this.placeName(r.map) : '—') + (r.dist !== null && r.dist !== undefined ? ` · ${r.dist} pas` : '') })),
+        r.status ? h('div.pl-st.' + r.status.kind, { html: icon({ battle: 'swords', trade: 'arrow-left-right', busy: 'hourglass' }[r.status.kind] || 'hourglass', 12) + ({ battle: 'En combat', trade: 'En échange', busy: 'Occupé dans le jeu' }[r.status.kind] || '') + (r.status.with ? ' avec ' + r.status.with : '') })
+          : h('div.where', { html: icon('map-pin', 12) + (r.map !== undefined ? this.placeName(r.map) : '—') + (r.dist !== null && r.dist !== undefined ? ` · ${r.dist} pas` : '') })),
       r.follower?.out ? this.ui.mon(r.follower.species) : null))));
   }
 }

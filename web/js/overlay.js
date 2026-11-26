@@ -22,6 +22,9 @@ function pokeball() {
   return c;
 }
 
+const STATUS_ICON = { battle: 'swords', trade: 'arrow-left-right', busy: 'hourglass' };
+const STATUS_TEXT = { battle: 'En combat', trade: 'Échange', busy: 'Occupé' };
+
 export class Overlay {
   constructor({ canvas, dom, lib, scale = 3 }) {
     this.cv = canvas; this.ctx = canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
@@ -161,10 +164,10 @@ export class Overlay {
   tagFor(it) {
     let t = this.tags.get(it.id);
     if (!t) {
-      const sw = h('i.sw'), nm = h('span.name'), link = h('span.link', { html: icon('link-2', 14) });
-      const el = h('div.pl-tag', {}, sw, nm, link);
+      const sw = h('i.sw'), nm = h('span.name'), link = h('span.link', { html: icon('link-2', 14) }), st = h('span.st');
+      const el = h('div.pl-tag', {}, sw, nm, link, st);
       this.dom.append(el);
-      t = { el, sw, nm, link, text: null, color: null, w: 0, shown: 0, duo: null };
+      t = { el, sw, nm, link, st, text: null, color: null, w: 0, shown: 0, duo: null, status: null };
       this.tags.set(it.id, t);
     }
     return t;
@@ -176,6 +179,14 @@ export class Overlay {
     }
     if (t.color !== it.tag.color) { t.color = it.tag.color; t.sw.style.background = it.tag.color; }
     if (t.duo !== !!it.tag.duo) { t.duo = !!it.tag.duo; t.el.classList.toggle('duo', t.duo); t.w = t.el.offsetWidth; }
+    // activité de l'ami : en combat, en échange, occupé (menu, combat du jeu…)
+    const st = it.tag.status || null, key = st ? st.kind + '|' + (st.with || '') : null;
+    if (t.status !== key) {
+      t.status = key;
+      t.el.dataset.status = st?.kind || '';
+      t.st.innerHTML = st ? icon(STATUS_ICON[st.kind] || 'hourglass', 13) + `<span>${STATUS_TEXT[st.kind] || ''}${st.with ? ' · ' + st.with : ''}</span>` : '';
+      t.w = t.el.offsetWidth;
+    }
   }
   layoutDom(now, me, items, prompt) {
     const S = this.S, seen = new Set();

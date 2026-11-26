@@ -1,27 +1,27 @@
-// Affichage des écrans du jeu avec un filtre (WebGL) : pixels nets, lissé, contours HD (Scale3x) ou écran LCD.
+// Affichage des écrans du jeu avec un filtre (WebGL) : net et régulier, contours HD (Scale3x) ou écran LCD.
 // La source (256 × 192, ou plus en 3D HD) est composée avec la couche des amis, puis agrandie à la taille affichée.
 
 export const FILTERS = [
-  { id: 'net', label: 'Pixels nets', sub: 'L’image d’origine, sans retouche' },
-  { id: 'hq', label: 'Contours HD', sub: 'Bords arrondis, pixels lissés (Scale3x)' },
-  { id: 'lisse', label: 'Lissé', sub: 'Doux, comme un écran moderne' },
-  { id: 'lcd', label: 'Écran LCD', sub: 'Grille fine, comme sur la console' },
+  { id: 'net', label: 'Pixels d’origine', sub: 'L’image telle quelle' },
+  { id: 'sharp', label: 'Net et régulier', sub: 'Tous les pixels de la même taille, sans flou' },
+  { id: 'hq', label: 'Contours HD', sub: 'Escaliers adoucis (Scale3x), toujours net' },
+  { id: 'lcd', label: 'Écran LCD', sub: 'Fine grille, comme sur la console' },
 ];
-const MODE = { net: 0, hq: 1, lisse: 2, lcd: 3 };
+const MODE = { net: 0, sharp: 0, hq: 1, lcd: 3 };
+const OLD = { lisse: 'sharp' };   // anciens réglages
 
 const VS = `attribute vec2 p; varying vec2 uv; void main() { uv = vec2(p.x * .5 + .5, .5 - p.y * .5); gl_Position = vec4(p, 0., 1.); }`;
 const FS = `precision mediump float;
-varying vec2 uv; uniform sampler2D t; uniform vec2 sz; uniform int mode;
+varying vec2 uv; uniform sampler2D t; uniform vec2 sz; uniform int mode; uniform float k;
 vec3 px(vec2 c) { return texture2D(t, (floor(c) + .5) / sz).rgb; }
 bool eq(vec3 a, vec3 b) { vec3 d = abs(a - b); return d.r + d.g + d.b < .02; }
 void main() {
   vec2 c = uv * sz;
-  if (mode == 2) { gl_FragColor = vec4(texture2D(t, uv).rgb, 1.); return; }
   vec3 E = px(c);
-  if (mode == 3) {
-    vec2 f = fract(c), g = min(f, 1. - f);
-    float k = smoothstep(0., .14, min(g.x, g.y));
-    gl_FragColor = vec4(E * (.78 + .22 * k), 1.); return;
+  if (mode == 3) {                               // LCD : la dernière ligne et colonne de chaque pixel, plus sombres
+    vec2 s = floor(fract(c) * k);
+    float edge = (s.x >= k - 1. || s.y >= k - 1.) ? .82 : 1.;
+    gl_FragColor = vec4(E * edge, 1.); return;
   }
   if (mode == 1) {
     vec3 A = px(c + vec2(-1., -1.)), B = px(c + vec2(0., -1.)), C = px(c + vec2(1., -1.));
@@ -61,10 +61,11 @@ export class ScreenFilter {
     const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.tex);
     for (const [k, v] of [[gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
-    this.u = { sz: gl.getUniformLocation(prog, 'sz'), mode: gl.getUniformLocation(prog, 'mode') };
+    this.u = { sz: gl.getUniformLocation(prog, 'sz'), mode: gl.getUniformLocation(prog, 'mode'), k: gl.getUniformLocation(prog, 'k') };
     this.ok = true;
   }
   setMode(mode) {
+    mode = OLD[mode] || mode;
     this.mode = this.ok && MODE[mode] !== undefined ? mode : 'net';
     const on = this.mode !== 'net';
     this.el.style.display = on ? '' : 'none';
@@ -76,9 +77,6 @@ export class ScreenFilter {
   present() {
     if (this.mode === 'net' || !this.ok) return;
     const gl = this.gl, el = this.el, src = this.src;
-    const r = el.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
-    const W = Math.max(1, Math.round(r.width * dpr)), H = Math.max(1, Math.round(r.height * dpr));
-    if (el.width !== W || el.height !== H) { el.width = W; el.height = H; }
     let img = src;
     if (this.overlay) {                                        // le jeu et les amis, filtrés ensemble
       const c = this.comp;
@@ -89,15 +87,20 @@ export class ScreenFilter {
       if (o > 0) { x.globalAlpha = o; x.drawImage(this.overlay, 0, 0, src.width, src.height); x.globalAlpha = 1; }
       img = c;
     }
+    // Rendu à un multiple ENTIER de l'image (tous les pixels identiques), puis le navigateur ajuste en douceur
+    // à la taille affichée : net, régulier, sans pixels plus gros que d'autres.
+    const r = el.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const need = Math.ceil((r.width * dpr) / img.width);           // agrandissement nécessaire pour remplir l'écran
+    const k = this.mode === 'hq' ? 3 * Math.max(1, Math.min(3, Math.ceil(need / 3))) : Math.max(2, Math.min(8, need));
+    const W = img.width * k, H = img.height * k;
+    if (el.width !== W || el.height !== H) { el.width = W; el.height = H; }
     gl.viewport(0, 0, W, H);
     gl.bindTexture(gl.TEXTURE_2D, this.tex);
-    // image déjà en haute définition (3D HD) : les contours HD n'ont plus de sens, on lisse simplement
-    const mode = this.mode === 'hq' && img.width > 256 ? 'lisse' : this.mode;
-    const f = mode === 'lisse' ? gl.LINEAR : gl.NEAREST;
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
     gl.uniform2f(this.u.sz, img.width, img.height);
-    gl.uniform1i(this.u.mode, MODE[mode]);
+    gl.uniform1i(this.u.mode, MODE[this.mode]);
+    gl.uniform1f(this.u.k, k);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }

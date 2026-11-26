@@ -6,6 +6,7 @@ import { icon } from './icons.js';
 import { COLOR_SLOTS } from './rom.js';
 import { settings, ACTIONS, SPEEDS, keyName } from './settings.js';
 import { FILTERS } from './emu/screen.js';
+import { TYPE_COLORS } from './gamedata.js';
 
 const KIND = {
   battle: { label: 'Combattre', sub: 'Défier en combat', accent: 'var(--c-battle)', icon: 'swords' },
@@ -327,7 +328,7 @@ export class ProfilePanel extends Panel {
     const buddyRow = h('div.pl-row', {}, h('label', {}, 'Pokémon compagnon'), buddies);
     const el = h('div.pl-profile.glass', {},
       h('div.pl-preview', {}, h('div.floor'), cv, nm, h('small', {}, 'Ce que tes amis voient en jeu'),
-        h('div.foot', {}, h('div.pl-note', { html: icon('sparkles', 14) + '<span>Visible tout de suite par tes amis ; sur ton écran dès que tu passes une porte ou ouvres un menu</span>' }), acts)),
+        h('div.foot', {}, h('div.pl-note', { html: icon('sparkles', 14) + '<span>Tes amis te voient tout de suite. Dans ton jeu (à pied, à vélo, en combat) : dès que tu passes une porte. Lucas/Aurore change aussi ton personnage dans la partie.</span>' }), acts)),
       h('div.pl-form', {},
         h('h3', { html: icon('palette', 20) + ' Mon personnage' }),
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 172px', gap: '4px' } }, nameRow, baseRow),
@@ -548,7 +549,7 @@ export class SettingsPanel extends Panel {
         h('div.pl-vol', {}, range, pct, mute)),
       h('div.pl-rule', {}, h('span.ic', { html: icon('fast-forward', 18) }),
         h('div.txt', {}, h('b', {}, 'Accélérer le jeu'), h('small', {}, `Touche ${settings.label('turbo')} pour l’activer ou le couper en jeu. Tes amis ne sont pas accélérés.`)), sw),
-      h('div.pl-rule.sub', {}, h('div.txt', {}, h('b', {}, 'Vitesse en accéléré'), h('small', {}, 'Si ton ordinateur n’arrive pas à suivre, le jeu va aussi vite qu’il peut')), speeds),
+      h('div.pl-rule.sub', {}, h('div.txt', {}, h('b', {}, 'Vitesse en accéléré'), h('small', {}, 'La vitesse réelle s’affiche sur le bouton en haut : si elle reste en dessous, ton ordinateur est à fond')), speeds),
       h('div.pl-rule.sub', {}, h('div.txt', {}, h('b', {}, 'Son pendant l’accélération'), h('small', {}, 'Coupé par défaut : le son accéléré grésille')),
         tap(h('span.pl-switch' + (st.turboSound ? '.on' : ''), {}, h('i')), () => settings.set({ turboSound: !st.turboSound }))),
       h('div.pl-tip', { html: icon('mouse-pointer-click', 16) + '<span>Astuce : tout se fait à la souris. Clique sur un ami dans le jeu (la bulle « Interagir ») ou sur les boutons à droite.</span>' }));
@@ -628,4 +629,72 @@ export class InvitePanel extends Panel {
     clearTimeout(this.t); this.t = setTimeout(() => !this.closed && this.copy.replaceChildren(h('span', { html: icon('copy', 16) }), h('span', {}, 'Copier le lien')), 2500);
   }
   nav(k) { if (k === 'B') this.close(); else if (k === 'A') this.doCopy(); return true; }
+}
+
+// ---------------------------------------------------------------------------------------------
+/** L'équipe d'un ami : six cartes avec sprite, niveau, types, PV, objet, talent et attaques. */
+export class TeamPanel extends Panel {
+  constructor(ui, { peer, gd, onTrade, onBattle }) {
+    const team = peer.team || [], T = gd.text;
+    const nice = x => x && x === x.toUpperCase() ? x.charAt(0) + x.slice(1).toLowerCase() : x;
+    const typeChip = t => h('span.pl-type', { style: { '--t': TYPE_COLORS[t] || '#888' } }, T.types?.[t] || '?');
+    const card = m => {
+      const sp = gd.species(m.species), types = [...new Set(sp.types)];
+      const pct = m.maxhp ? Math.max(0, Math.min(1, m.hp / m.maxhp)) : 1;
+      const g = m.gender === 'M' ? h('span.g.m', {}, '♂') : m.gender === 'F' ? h('span.g.f', {}, '♀') : null;
+      const moves = (m.moves || []).map(n => { const mv = gd.move(n); return h('span.pl-mv', { style: { '--t': TYPE_COLORS[mv.type] || '#888' } }, mv.name); });
+      return h('div.pl-tcard' + (m.hp === 0 ? '.ko' : ''), {},
+        h('div.top', {}, h('div.spr', {}, ui.mon(m.species), m.shiny ? h('span.shiny', { title: 'Chromatique' }, '✦') : null),
+          h('div.id', {}, h('b', {}, nice(m.name), g), h('small', {}, (sp.name && sp.name.toLowerCase() !== String(m.name).toLowerCase() ? nice(sp.name) + ' · ' : '') + 'Nv. ' + m.level), h('div.types', {}, types.map(typeChip)))),
+        h('div.hp', {}, h('i', { style: { width: (pct * 100).toFixed(0) + '%', background: pct > 0.5 ? '#34d399' : pct > 0.2 ? '#fbbf24' : '#f87171' } }), h('small', {}, m.maxhp ? `${m.hp}/${m.maxhp} PV` : '')),
+        h('div.info', {}, m.item ? h('span', { title: 'Objet tenu', html: icon('package', 12) + (T.items?.[m.item] || 'Objet') }) : h('span.none', {}, 'Aucun objet'),
+          m.ability ? h('span', { title: 'Talent', html: icon('sparkles', 12) + (T.abilities?.[m.ability] || '') }) : null),
+        h('div.moves', {}, moves.length ? moves : h('small', {}, 'Attaques inconnues')));
+    };
+    const el = h('div.pl-teampanel.glass', {},
+      h('div.head', {}, ui.portrait(peer.profile, 44),
+        h('div', {}, h('h3', {}, `Équipe de ${peer.profile.name}`), h('small', {}, team.length ? `${team.length} Pokémon · niveau moyen ${Math.round(team.reduce((a, m) => a + m.level, 0) / team.length)}` : 'Équipe pas encore reçue'))),
+      h('div.pl-tgrid', {}, team.map(card)),
+      h('div.foot', {},
+        tap(h('span.pl-btn', { style: { '--accent': 'var(--c-trade)' } }, h('span', { html: icon('arrow-left-right', 15) }), 'Proposer un échange'), () => { this.close(); onTrade(); }),
+        tap(h('span.pl-btn', { style: { '--accent': 'var(--c-battle)' } }, h('span', { html: icon('swords', 15) }), 'Défier en combat'), () => { this.close(); onBattle(); }),
+        h('span.pl-spacer'),
+        tap(h('span.pl-btn', {}, keycap('B'), 'Fermer'), () => this.close())));
+    super(ui, el);
+    el.append(tap(h('span.pl-x', { title: 'Fermer', html: icon('x', 18) }), () => this.close()));
+  }
+  nav(k) { if (k === 'B' || k === 'A') this.close(); return true; }
+}
+
+// ---------------------------------------------------------------------------------------------
+/** Exporter sa sauvegarde : rappelle qu'il faut d'abord sauvegarder DANS LE JEU, puis télécharge le .sav. */
+export class SavePanel extends Panel {
+  constructor(ui, { quit, savedAt, startKey, onDownload }) {
+    const status = h('div.pl-savestate');
+    const dl = h('span.pl-btn.primary', { style: { '--accent': '#10b981' } }, h('span', { html: icon('download', 16) }), h('span.lbl'));
+    const el = h('div.pl-savepanel.glass', {},
+      h('div.head', {}, h('span.hic', { html: icon('download', 22) }),
+        h('div', {}, h('h3', {}, quit ? 'Sauvegarder et quitter' : 'Exporter ta sauvegarde'), h('small', {}, 'Ton fichier .sav, à garder ou à charger sur un autre émulateur'))),
+      h('div.pl-warn', { html: icon('triangle-alert', 20) + `<div><b>Sauvegarde d’abord DANS LE JEU, puis exporte.</b><span>Le fichier .sav ne contient que ce que le jeu a enregistré : tout ce que tu as fait depuis ta dernière sauvegarde dans le jeu n’y sera pas.</span></div>` }),
+      h('ol.pl-savesteps', {},
+        h('li', {}, h('b', {}, 'Dans le jeu : '), `ouvre le menu (touche ${startKey}), choisis `, h('b', {}, 'SAUVER'), ', puis ', h('b', {}, 'OUI'), '.'),
+        h('li', {}, 'Attends le message ', h('i', {}, '« … a sauvegardé la partie. »')),
+        h('li', {}, 'Reviens ici et clique sur ', h('b', {}, quit ? 'Télécharger et quitter' : 'Télécharger'), '.')),
+      status,
+      h('div.foot', {}, tap(h('span.pl-btn', {}, h('span', { html: icon('chevron-left', 15) }), 'Retour au jeu pour sauvegarder'), () => this.close()), h('span.pl-spacer'), dl));
+    super(ui, el);
+    Object.assign(this, { status, dl, quit, savedAt });
+    tap(dl, () => { this.close(); onDownload(); });
+    el.append(tap(h('span.pl-x', { title: 'Fermer', html: icon('x', 18) }), () => this.close()));
+    this.render(); this.t = setInterval(() => this.closed ? clearInterval(this.t) : this.render(), 1000);
+  }
+  render() {
+    const at = this.savedAt?.(), ago = at ? Math.round((Date.now() - at) / 60000) : null;
+    this.status.className = 'pl-savestate ' + (at ? 'ok' : 'no');
+    this.status.innerHTML = at
+      ? icon('check', 16) + `<span>Sauvegardé dans le jeu ${ago < 1 ? 'à l’instant' : `il y a ${ago} min`} : ton fichier sera à jour.</span>`
+      : icon('circle-alert', 16) + '<span>Tu n’as pas encore sauvegardé dans le jeu depuis le lancement : le fichier sera celui du début de la session.</span>';
+    this.dl.querySelector('.lbl').textContent = (at ? 'Télécharger' : 'Télécharger quand même') + (this.quit ? ' et quitter' : '');
+  }
+  nav(k) { if (k === 'B') this.close(); return true; }
 }

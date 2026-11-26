@@ -45,10 +45,15 @@ Trois pages :
 | Bouton **Sauvegarder** (télécharge ton `.sav`), **Sauvegarder et quitter**, **Quitter sans sauvegarder** ; sauvegarde aussi gardée dans le navigateur toutes les 30 s | ✅ vérifié |
 | **Écran tactile** : la souris sert de stylet sur l'écran du bas (tutoriel, Pokétch…) | ✅ vérifié |
 | **Réglages** en jeu : toutes les touches modifiables, volume, accélération ×1,5 à ×4 (vraie vitesse, son coupé par défaut) | ✅ vérifié |
-| **Image** : filtres Pixels nets, Contours HD (Scale3x), Lissé, Écran LCD ; mode économie | ✅ vérifié |
+| **Image** : Pixels d'origine, Net et régulier, Contours HD (Scale3x), Écran LCD, rendus à l'échelle entière ; mode économie | ✅ vérifié |
 | Le jeu **continue en arrière-plan** (autre fenêtre devant, onglet caché) | ✅ vérifié |
 | Cliquer sur un ami (dans le jeu, son nom, ou la liste « Dans la room ») ouvre son menu, où qu'il soit | ✅ |
 | Échanges fiabilisés : état renvoyé chaque seconde, messages en avance gardés, annulation gérée | ✅ |
+| **Équipe d'un ami** en un coup d'œil : sprites, niveaux, types, PV, objet, talent, attaques | ✅ |
+| **Badge d'activité** au-dessus d'un ami et dans la liste : en combat, en échange, occupé | ✅ |
+| **Souris sur l'écran du haut** : clic pour marcher jusqu'à une case, parler en butant sur quelqu'un, avancer les dialogues ; clic droit = B | ✅ |
+| **Lucas ↔ Aurore** dans sa propre partie ; tenue visible à pied, à vélo, en surf et de dos en combat | ✅ |
+| Export de la sauvegarde guidé : **sauvegarder d'abord dans le jeu**, heure de la dernière sauvegarde affichée | ✅ |
 | **Inviter un ami** : lien de la room à copier ou partager | ✅ |
 | Tout se fait **à la souris** : menus, échanges, combats, profil, règles (le clavier marche toujours) | ✅ |
 | Audit automatique de l'interface (débordements, centrage, marges, texte coupé) | ✅ 0 problème |
@@ -136,3 +141,7 @@ Entrée = Start, Retour = Select · P = sortir/rentrer son Pokémon · C = profi
 Espace = accélérer · I = inviter un ami. L'écran du bas se touche à la souris, comme un stylet.
 
 Publier une release sur GitHub met le site à jour automatiquement (`.github/workflows/publier-site.yml`).
+
+## Remerciements
+
+Merci à **Alexandre**, bêta-testeur de la première heure : ses parties ont permis de trouver et corriger les échanges bloqués, l'accélération, les filtres d'image, la tenue à vélo et en combat, et bien plus.
