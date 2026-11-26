@@ -100,10 +100,10 @@ export class PokeLinkApp {
     this.botScreen = new ScreenFilter(bottom);
     const chipBtn = (cls, title, ic, fn, label) => tap(h('span.pl-chip.btn' + cls, { title }, h('span.ic', { html: icon(ic, 15) }), label || null), fn);
     this.roomChip = tap(h('span.pl-chip.btn', { title: 'Inviter un ami dans la room' }, 'ROOM', h('b', {}, this.room)), () => this.openInvite());
-    this.inviteChip = chipBtn('.invite', 'Envoyer le lien de la room à un ami', 'user-plus', () => this.openInvite(), h('span', {}, 'Inviter un ami'));
+    this.inviteChip = chipBtn('.invite', 'Envoyer le lien de la room à un ami', 'user-plus', () => this.openInvite(), h('span', {}, 'Inviter'));
     this.turboChip = chipBtn('.turbo', 'Accélérer le jeu', 'fast-forward', () => this.setTurbo(!this.turboOn), h('span'));
     this.soundChip = chipBtn('.sound', 'Couper ou remettre le son', 'volume-2', () => settings.set({ muted: !settings.state.muted, volume: settings.state.volume || 0.6 }));
-    this.settingsChip = chipBtn('.gear', 'Réglages : touches, volume, vitesse', 'settings', () => this.openSettings(), h('span', {}, 'Réglages'));
+    this.settingsChip = chipBtn('.gear', 'Réglages : touches, volume, vitesse, image', 'settings', () => this.openSettings());
     tap(this.rulesChip, () => this.openRules());
     // Sauvegarder (fichier .sav) · menu : Sauvegarder et quitter
     this.saveMain = tap(h('span.main', { title: 'Enregistrer ta partie et télécharger ton fichier de sauvegarde (.sav)' }, h('span.ic', { html: icon('download', 16) }), h('span', {}, 'Sauvegarder')), () => this.save(false));
@@ -119,7 +119,7 @@ export class PokeLinkApp {
       A: key('A', 'Interagir', () => {
         const p = this.promptPeer || this.nearestPeer();
         if (p) return this.openMenu(p);
-        this.ui.toasts.show({ ic: 'users', title: this.peers.size ? 'Ton ami est sur une autre carte' : 'Personne dans la room pour l’instant', sub: this.peers.size ? 'Clique sur lui dans la liste « Dans la room »' : 'Invite un ami avec le bouton « Inviter un ami »', dur: 2600 });
+        this.ui.toasts.show({ ic: 'users', title: this.peers.size ? 'Ton ami est sur une autre carte' : 'Personne dans la room pour l’instant', sub: this.peers.size ? 'Clique sur lui dans la liste « Dans la room »' : 'Invite un ami avec le bouton « Inviter »', dur: 2600 });
       }),
       follower: key('follower', 'Pokémon', () => this.toggleFollower()),
       profile: key('profile', 'Profil', () => this.openProfile()),

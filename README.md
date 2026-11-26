@@ -1,151 +1,138 @@
-# eden-pokelink
-
 <p align="center">
-  <a href="https://swagedencool.github.io/eden-pokelink/"><b>▶ Jouer maintenant : swagedencool.github.io/eden-pokelink</b></a>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <img src="docs/logo.svg" alt="PokéLink, aventures Pokémon entre amis" width="440">
+  </picture>
 </p>
 
-> **[🎮 Ouvrir le jeu](https://swagedencool.github.io/eden-pokelink/)** · [Jouer](https://swagedencool.github.io/eden-pokelink/play.html) · [Atelier ROM](https://swagedencool.github.io/eden-pokelink/atelier.html)
->
-> Rien à installer : ça marche dans le navigateur. Pour l'instant, seul **Pokémon Platine** est testé et fonctionnel.
+<p align="center">
+  Des aventures Pokémon entre amis, chacun dans sa propre partie : vous vous voyez dans le monde du jeu, vous échangez et vous vous affrontez, en temps réel. Rien à installer, aucun serveur : tout tourne dans le navigateur.<br>
+  <a href="https://swagedencool.github.io/eden-pokelink/"><b>Jouer</b></a> · <a href="../../releases">Nouveautés</a> · <a href="docs/TECHNIQUE.md">Notes techniques</a>
+</p>
 
-**PokéLink** : des aventures Pokémon entre amis, chacun dans sa propre partie. Pensé pour les randomizers et les
-Nuzlockes à 3–5 joueurs.
+<p align="center">
+  <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/swagedencool/eden-pokelink?label=version&color=7c5cff" alt="Version"></a>
+  <a href="../../actions/workflows/publier-site.yml"><img src="https://github.com/swagedencool/eden-pokelink/actions/workflows/publier-site.yml/badge.svg" alt="Publication du site"></a>
+  <img src="https://img.shields.io/badge/licence-GPL--3.0-blue" alt="GPL-3.0">
+  <img src="https://img.shields.io/badge/test%C3%A9-Pok%C3%A9mon%20Platine-22d3ee" alt="Testé sur Pokémon Platine">
+</p>
 
-**Aucun serveur.** C'est un site statique : tout tourne sur les machines des joueurs. L'émulateur, le randomizer
-et les combats sont dans le navigateur ; les joueurs d'une room se parlent en direct, d'ordinateur à ordinateur
-(WebRTC). On peut l'héberger gratuitement n'importe où (GitHub Pages).
+![PokéLink : deux joueurs dans Féli-Cité, chacun dans sa partie de Pokémon Platine](docs/images/hud.webp)
 
-Trois pages :
+> Pour l'instant, seul **Pokémon Platine** (version française) est testé de bout en bout. Les autres jeux de la Gen 1 à 5 se lancent et passent dans le randomizer, mais le jeu à plusieurs n'y fonctionne pas encore.
 
-- **Accueil** (`index.html`) : jouer, préparer une run, rejoindre une room avec un code.
-- **Jouer** (`play.html`) : la ROM et la sauvegarde du joueur tournent **dans son navigateur** (EmulatorJS,
-  cœurs WebAssembly). Les joueurs d'une room se voient dans le monde du jeu, échangent, se combattent, sortent
-  leur Pokémon derrière eux et personnalisent leur personnage, avec une interface « glass ».
-- **Atelier ROM** (`atelier.html`) : l'**Universal Pokémon Randomizer ZX** (tous ses réglages, Gen 1 à 5)
-  et un **random map** (portes mélangées). L'hôte partage réglages et graine à la room : même aventure pour tous.
+## Fonctionnalités
 
-## Ce qui est fait et vérifié sur une vraie ROM (Platine FR) et une vraie sauvegarde
+### Jouer ensemble, chacun dans sa partie
 
-| Fonction | État |
-|---|---|
-| Émulateur dans le navigateur : Platine démarre, la sauvegarde du joueur est chargée, touches et écran tactile passent par PokéLink | ✅ vérifié |
-| Mémoire du jeu lue dans le navigateur : position, carte, équipe, écran « carte » ou menu, fondus | ✅ vérifié |
-| Position, carte, direction lues dans la mémoire du jeu ; projection pour les 17 caméras de Platine | ✅ vérifié au pixel |
-| Amis affichés et animés dans le monde ; masqués derrière son propre personnage ; « solides » | ✅ |
-| Menu d'interaction, demandes avec compte à rebours, émotes | ✅ |
-| Échange synchronisé, **Pokémon reçu écrit dans l'équipe du jeu** (stats recalculées = celles du jeu) | ✅ vérifié |
-| Combat entre joueurs (simulateur Showdown, règles 4G) et **résultat écrit dans la partie** | ✅ vérifié |
-| Lectures/écritures d'équipe sûres : jamais pendant que le jeu rechiffre un Pokémon (voir `docs/memoire.md`) | ✅ vérifié |
-| Profil : pseudo, Lucas/Aurore, couleurs, Pokémon compagnon ; recoloration aussi dans le jeu | ✅ vérifié |
-| **Atelier : Universal Pokémon Randomizer ZX 4.6.1**, réglages en français, formules, import de réglages UPR, graine partagée, empreinte de run | ✅ vérifié |
-| **Random map** : par ville, régional (toujours finissable), chaos ; chaque porte ramène d'où l'on vient | ✅ vérifié dans le jeu |
-| **Âmes liées** : Pokémon rencontrés au même endroit liés entre amis ; un K.O. emporte les autres, qui restent K.O. (même après un Centre Pokémon) | ✅ |
-| **Plafond de niveau** : automatique (prochain champion, lu dans ta ROM, donc randomisée) ou fixe ; plus d'EXP en combat ni à la Pension, Super Bonbon sans effet | ✅ vérifié dans le jeu |
-| Les deux règles s'activent et se coupent à tout moment, par n'importe quel joueur (touche R), et sont transmises aux arrivants | ✅ |
-| Bouton **Sauvegarder** (télécharge ton `.sav`), **Sauvegarder et quitter**, **Quitter sans sauvegarder** ; sauvegarde aussi gardée dans le navigateur toutes les 30 s | ✅ vérifié |
-| **Écran tactile** : la souris sert de stylet sur l'écran du bas (tutoriel, Pokétch…) | ✅ vérifié |
-| **Réglages** en jeu : toutes les touches modifiables, volume, accélération ×1,5 à ×4 (vraie vitesse, son coupé par défaut) | ✅ vérifié |
-| **Image** : Pixels d'origine, Net et régulier, Contours HD (Scale3x), Écran LCD, rendus à l'échelle entière ; mode économie | ✅ vérifié |
-| Le jeu **continue en arrière-plan** (autre fenêtre devant, onglet caché) | ✅ vérifié |
-| Cliquer sur un ami (dans le jeu, son nom, ou la liste « Dans la room ») ouvre son menu, où qu'il soit | ✅ |
-| Échanges fiabilisés : état renvoyé chaque seconde, messages en avance gardés, annulation gérée | ✅ |
-| **Combat en duo** : 4 contre 4, deux Pokémon de chaque côté sur le terrain, choix de la cible | ✅ |
-| Image nette sur les écrans zoomés (Windows 125 %, 150 %…) : l'émulateur dessine toujours en 256 × 384 | ✅ |
-| **Équipe d'un ami** en un coup d'œil : sprites, niveaux, types, PV, objet, talent, attaques | ✅ |
-| **Badge d'activité** au-dessus d'un ami et dans la liste : en combat, en échange, occupé | ✅ |
-| **Souris sur l'écran du haut** : clic pour marcher jusqu'à une case, parler en butant sur quelqu'un, avancer les dialogues ; clic droit = B | ✅ |
-| **Lucas ↔ Aurore** dans sa propre partie ; tenue visible à pied, à vélo, en surf | ✅ |
-| Export de la sauvegarde guidé : **sauvegarder d'abord dans le jeu**, heure de la dernière sauvegarde affichée | ✅ |
-| **Inviter un ami** : lien de la room à copier ou partager | ✅ |
-| Tout se fait **à la souris** : menus, échanges, combats, profil, règles (le clavier marche toujours) | ✅ |
-| Audit automatique de l'interface (débordements, centrage, marges, texte coupé) | ✅ 0 problème |
-| Tests serveur : rooms, format 4G, random map, combats, atelier | ✅ `npm test` |
+Chacun charge sa propre ROM et sa propre sauvegarde. Dans la même room, on se voit dans le monde du jeu, avec son pseudo, sa tenue et son Pokémon qui suit (comme dans HeartGold/SoulSilver). La liste « Dans la room » indique où est chacun, et un badge prévient quand un ami est en combat ou en échange. Pour inviter quelqu'un, il suffit de lui envoyer le lien de la room.
 
-## Générations et jeux
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/setup.webp" alt="Préparer une partie : ROM, sauvegarde et room"></td>
+    <td width="50%"><img src="docs/images/invite.webp" alt="Inviter un ami avec le lien de la room"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>La ROM et la sauvegarde ne quittent pas ton ordinateur</sub></td>
+    <td align="center"><sub>Un lien suffit pour rejoindre la room</sub></td>
+  </tr>
+</table>
 
-- **Jouables dans le navigateur avec la room** : Gen 1 à 5 via les cœurs fournis (GB/GBC : Gambatte, GBA : mGBA,
-  DS : DeSmuME 2015 — melonDS est aussi fourni, mais il affiche « Erreur de communication » avec certaines
-  sauvegardes de Platine). Testé de bout en bout avec Platine ; les autres jeux restent à tester sur leurs ROMs.
-- **Randomizer** : toutes les versions reconnues par UPR ZX, françaises comprises (Rouge/Bleu/Jaune, Or/Argent/Cristal,
-  Rubis/Saphir/Émeraude, RougeFeu/VertFeuille, Diamant/Perle/Platine, HeartGold/SoulSilver, Noir/Blanc, Noir 2/Blanc 2).
-- **Amis visibles dans le monde, échanges et combats intégrés** : Platine FR (adresses vérifiées). Chaque autre jeu
-  demande sa table d'adresses (position, carte, équipe), à vérifier sur la vraie ROM : `web/js/emu/platinum.js` sert de modèle.
-- **Random map** : Platine FR ; les autres jeux demandent leur table de portes.
+### Échanger, combattre, regarder l'équipe des autres
 
-## Lancer
+Clique sur un ami, dans le jeu ou dans la liste, pour ouvrir son menu. Les échanges sont synchronisés : le Pokémon reçu est écrit directement dans ta partie, avec les vraies stats du jeu. Les combats sont simulés par le moteur de Pokémon Showdown (règles de la 4e génération), en simple (3 contre 3) ou **en duo** (4 contre 4, deux Pokémon chacun sur le terrain). Le résultat, PV et K.O. compris, est réécrit dans ta partie.
 
-Le site, c'est le dossier `web/`. Pour l'essayer chez soi :
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/menu.webp" alt="Le menu d'un ami"></td>
+    <td width="50%"><img src="docs/images/team.webp" alt="L'équipe d'un ami"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Menu d'un ami : échange, combat, duo, équipe, émotes</sub></td>
+    <td align="center"><sub>Son équipe : types, PV, objet, talent, attaques</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/trade.webp" alt="Un échange entre deux joueurs"></td>
+    <td><img src="docs/images/battle-duo.webp" alt="Un combat en duo"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Échange : chacun choisit, puis les deux confirment</sub></td>
+    <td align="center"><sub>Combat en duo : deux Pokémon de chaque côté, on choisit la cible</sub></td>
+  </tr>
+</table>
 
-```
-cd web && python3 -m http.server 8000      # puis http://localhost:8000
-```
+### Nuzlocke à plusieurs : les règles de la room
 
-Pour publier : `sh tools/build-site.sh` produit `dist/` (refuse de continuer s'il y trouve une ROM ou une sauvegarde),
-à pousser sur la branche `gh-pages`.
+- **Âmes liées** : les Pokémon rencontrés au même endroit par des amis différents sont liés. Si l'un tombe K.O., les autres aussi, et ils le restent même après un Centre Pokémon.
+- **Plafond de niveau** : automatique (niveau du prochain champion, lu dans ta ROM, donc juste même randomisée) ou fixe. Au plafond, plus d'EXP en combat ni à la Pension, et le Super Bonbon n'a plus d'effet.
 
-Le dossier `server/` n'est plus nécessaire pour jouer : il garde les tests (`cd server && npm install && npm test`)
-et la construction de `upr.jar` (`sh server/upr/build.sh`, demande git et un JDK 11+).
+N'importe quel joueur peut les activer ou les couper à tout moment. Les amis qui arrivent les reçoivent automatiquement.
 
-## Comment ça marche sans serveur
+<p align="center"><img src="docs/images/rules.webp" alt="Les règles de la room : Âmes liées et Plafond de niveau" width="80%"></p>
 
-- **Rooms** : le code de room sert de point de rendez-vous sur des relais Nostr publics (Trystero), puis les
-  navigateurs se connectent directement entre eux en WebRTC. Les relais ne voient que la mise en relation, chiffrée
-  avec le code de la room ; position, profil, échanges et combats passent ensuite d'un joueur à l'autre.
-- **Combats** : simulés par `@pkmn/sim` (le moteur de Pokémon Showdown) dans le navigateur d'un des deux joueurs.
-- **Atelier** : l'Universal Pokémon Randomizer ZX (Java) tourne dans le navigateur grâce à CheerpJ.
-  La ROM ne quitte jamais ton ordinateur.
-- **Sauvegardes** : gardées dans le navigateur (IndexedDB) toutes les 30 s, export en `.sav`.
+### Atelier ROM : l'Universal Pokémon Randomizer, en français, dans le navigateur
 
-## Confidentialité
+Tous les réglages de l'Universal Pokémon Randomizer ZX, traduits, avec des formules prêtes (Nuzlocke, Aventure entre amis, Duo, Chaos total) et un **random map** où chaque porte mène ailleurs. Avec la même ROM, les mêmes réglages et la même graine, tout le monde a la même aventure. Le randomizer tourne dans ton navigateur, donc ta ROM ne quitte jamais ton ordinateur.
 
-ROMs et sauvegardes restent sur l'ordinateur de chaque joueur : rien n'est envoyé nulle part. Les autres joueurs
-de la room ne reçoivent que de petits messages (position, profil, demandes, combats, règles).
+![L'atelier ROM](docs/images/atelier.webp)
 
-## Arborescence
+### Ton personnage
 
-```
-web/
-  index.html, play.html, atelier.html
-  css/pokelink.css       interface glass en jeu (grille de 4 px)
-  css/atelier.css        atelier et pages du site
-  js/emu/host.js         émulateur (EmulatorJS) : démarrage, sauvegarde, touches, mémoire WebAssembly
-  js/emu/platinum.js     adaptateur Platine : état pour l'overlay, équipe, couleurs dans la ROM chargée
-  js/play.js             page de jeu
-  js/atelier/            atelier ROM : réglages UPR en français, formules, reconnaissance des ROMs
-  js/rando/doors.js      random map
-  js/p2p.js              rooms pair-à-pair (Trystero / WebRTC)
-  js/battle-core.js      combats simulés dans le navigateur
-  js/atelier/upr-browser.js  randomizer dans le navigateur (CheerpJ)
-  js/rules.js            Âmes liées et Plafond de niveau
-  js/rom.js · gamedata.js · pk4.js · sprites.js · projection.js · world.js · overlay.js · input.js · ui.js · battle-ui.js · app.js · net.js · store.js
-  vendor/emulatorjs/     EmulatorJS 4.2.3 (GPL-3.0) et cœurs desmume2015, melonds, mgba, gambatte
-  vendor/upr/upr.jar     Universal Pokémon Randomizer ZX + pont PokeLinkUPR (GPL-3.0)
-  vendor/sim.js, trystero.js  @pkmn/sim (MIT), Trystero (MIT)
-  preview/               banc de démo, galerie d'audit, page de test de l'émulateur
-server/                  outils et tests (plus utilisé pour jouer)
-  upr/                   pont PokeLinkUPR.java + build.sh (UPR ZX, GPL-3.0)
-tools/build-site.sh      construit le site statique dans dist/
-docs/memoire.md          adresses, structures et formats vérifiés
-tools/                   scripts Python de la preview (DeSmuME + Playwright)
+Pseudo, Lucas ou Aurore, couleurs du bonnet, du manteau et des détails, Pokémon compagnon. Tes amis te voient tout de suite, et ta tenue s'applique aussi dans ta propre partie : à pied, à vélo, en surf.
+
+<p align="center"><img src="docs/images/profile.webp" alt="Personnaliser son personnage" width="80%"></p>
+
+### Confort
+
+- **Souris partout** : menus, échanges et combats. Sur l'écran du haut, un clic fait marcher jusqu'à la case visée, ou parler à quelqu'un. L'écran du bas se touche comme avec un stylet.
+- **Réglages** : toutes les touches modifiables (la disposition AZERTY est reconnue), volume, accélération de ×1,5 à ×4, filtres d'image (Net et régulier, Contours HD, Écran LCD).
+- **Sauvegarde guidée** : sauvegarde d'abord dans le jeu, puis télécharge ton `.sav`. La partie est aussi gardée dans le navigateur.
+- **Le jeu continue en arrière-plan**, même quand la fenêtre n'est pas au premier plan.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/settings-image.webp" alt="Réglages : filtres d'image"></td>
+    <td width="50%"><img src="docs/images/save.webp" alt="Exporter sa sauvegarde"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Réglages : son, vitesse, image et touches</sub></td>
+    <td align="center"><sub>Sauvegarde : d'abord dans le jeu, ensuite le fichier</sub></td>
+  </tr>
+</table>
+
+## Jouer
+
+1. Va sur **[swagedencool.github.io/eden-pokelink](https://swagedencool.github.io/eden-pokelink/)**, puis *Jouer*.
+2. Charge ta ROM de Pokémon Platine et ta sauvegarde (ou commence une nouvelle partie).
+3. Lance la partie, puis clique sur **Inviter** (en haut) et envoie le lien à tes amis.
+
+Touches par défaut (modifiables dans *Réglages*) : flèches = croix, X = A, Z = B, S = X, A = Y, Q/W = L/R, Entrée = Start, Retour = Select, P = Pokémon qui suit, C = profil, E = émote, R = règles, Espace = accélérer.
+
+Aucun jeu n'est fourni : chacun utilise les dumps de ses propres cartouches.
+
+## Fonctionnement
+
+- **Aucun serveur.** C'est un site statique. Les joueurs se trouvent grâce au code de room (relais Nostr publics, via [Trystero](https://github.com/dmotz/trystero)), puis se connectent directement entre eux en WebRTC.
+- **Émulateur** : [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) et le cœur DeSmuME en WebAssembly. PokéLink lit la mémoire du jeu (position, carte, équipe) pour afficher les amis au bon endroit et y écrire les échanges et les combats.
+- **Combats** : [@pkmn/sim](https://github.com/pkmn/ps), le moteur de Pokémon Showdown, simulé dans le navigateur d'un des deux joueurs.
+- **Randomizer** : [Universal Pokémon Randomizer ZX](https://github.com/Ajarmar/universal-pokemon-randomizer-zx), un programme Java exécuté dans le navigateur grâce à [CheerpJ](https://cheerpj.com).
+- Le reste est du JavaScript simple, sans framework ni bundler. Détails : [docs/TECHNIQUE.md](docs/TECHNIQUE.md).
+
+## Développement
+
+```sh
+cd web && python3 -m http.server 8000     # le site en local : http://localhost:8000
+cd server && npm install && npm test      # tests (rooms, format 4G, random map, combats, atelier)
+sh tools/build-site.sh                    # le site prêt à publier dans dist/ (refuse toute ROM ou sauvegarde)
 ```
 
-## Licences
+Publier une release sur GitHub met le site en ligne automatiquement ([publier-site.yml](.github/workflows/publier-site.yml)). Le numéro de version s'affiche en haut de chaque page.
 
-Code PokéLink : à toi. Composants tiers : Universal Pokémon Randomizer ZX (GPL-3.0, le pont `server/upr` l'est aussi),
-EmulatorJS (GPL-3.0), DeSmuME (GPL-2.0), melonDS (GPL-3.0), mGBA (MPL-2.0), Gambatte (GPL-2.0), Pokémon Showdown et @pkmn/sim (MIT), Trystero (MIT),
-CheerpJ (Leaning Technologies, licence communautaire : usage personnel gratuit),
-icônes Lucide (ISC). Un site public qui sert ces fichiers doit en fournir les sources (elles sont publiques).
-Aucun fichier de jeu n'est fourni : chacun utilise ses propres ROMs et sauvegardes.
-Projet de fans, sans lien avec Nintendo, Game Freak, Creatures ou The Pokémon Company.
+## Licence
 
-Touches par défaut (modifiables dans **Réglages**, touche O) : flèches = croix, X = A, Z = B, S = X, A = Y, Q/W = L/R,
-Entrée = Start, Retour = Select · P = sortir/rentrer son Pokémon · C = profil · E = émote · R = règles de la room ·
-Espace = accélérer · I = inviter un ami. L'écran du bas se touche à la souris, comme un stylet.
+PokéLink est sous GPL-3.0, comme EmulatorJS et l'Universal Pokémon Randomizer. Composants tiers : [THIRD_PARTY.md](THIRD_PARTY.md).
+Projet de fans, sans lien avec Nintendo, Game Freak, Creatures ou The Pokémon Company. Pokémon est une marque de Nintendo, Creatures et Game Freak.
 
-Publier une release sur GitHub met le site à jour automatiquement (`.github/workflows/publier-site.yml`).
-Le numéro de version s'affiche en haut de chaque page, à côté du logo : s'il correspond à la release, la mise en ligne
-a réussi. Si une version plus récente est en ligne, la pastille devient jaune et un clic la charge.
+Merci à **Alexandre**, bêta-testeur de la première heure.
 
-## Remerciements
-
-Merci à **Alexandre**, bêta-testeur de la première heure : ses parties ont permis de trouver et corriger les échanges bloqués, l'accélération, les filtres d'image, la tenue à vélo et en combat, et bien plus.
+Design et développement : [Eden Bourezg](https://edenbourezg.myportfolio.com).
