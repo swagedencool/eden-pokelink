@@ -93,6 +93,14 @@ export class EmuHost {
   start(rom, name, save) {
     keepDrawingBuffer();
     keepRunningInBackground();
+    // L'émulateur dessine en « pixels réels » (taille CSS × zoom de l'écran Windows/Mac). Avec un zoom de 125 %,
+    // il produirait 320 × 480 au lieu de 256 × 384 : pixels inégaux et image étirée. On le cale sur 256 × 384.
+    if (this.ownInput) {
+      const el = document.querySelector(this.mount);
+      const fit = () => { const d = window.devicePixelRatio || 1; el.style.width = 256 / d + 'px'; el.style.height = 384 / d + 'px'; };
+      fit(); window.addEventListener('resize', fit);
+      try { matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', fit); } catch {}
+    }
     return new Promise((resolve, reject) => {
       const w = window;
       Object.assign(w, {

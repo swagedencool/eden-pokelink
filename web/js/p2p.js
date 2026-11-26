@@ -144,7 +144,7 @@ export class P2PRoom {
     const rid = String(m.rid || '').slice(0, 64);
     if (!rid || this.battles.has(rid) || !Array.isArray(m.team) || !m.team.length || m.team.length > 6) return;
     const p = this.pending.get(rid) || {};
-    p[from] = { id: from, name: String(m.name || 'Dresseur').slice(0, 18), team: m.team, opponent: m.opponent, seed: m.seed };
+    p[from] = { id: from, name: String(m.name || 'Dresseur').slice(0, 18), team: m.team, opponent: m.opponent, seed: m.seed, doubles: !!m.doubles };
     this.pending.set(rid, p);
     const ids = Object.keys(p);
     if (ids.length < 2) return;
@@ -155,7 +155,7 @@ export class P2PRoom {
     const send = (id, msg) => (id === this.id ? this.receive(msg, this.id) : this.tp.send(msg, id));
     try {
       const [sim, { Battle }] = await Promise.all([import('../vendor/sim.js'), import('./battle-core.js')]);
-      this.battles.set(rid, new Battle(sim, { id: rid, players: [a, b], seed, send, onEnd: () => setTimeout(() => this.battles.delete(rid), 60000) }));
+      this.battles.set(rid, new Battle(sim, { id: rid, players: [a, b], seed, send, doubles: a.doubles || b.doubles, onEnd: () => setTimeout(() => this.battles.delete(rid), 60000) }));
     } catch (e) {
       for (const x of [a, b]) send(x.id, { t: 'battle', rid, ev: 'error', error: 'Combat impossible : ' + e.message });
     }

@@ -516,3 +516,16 @@ canvas.pl-screen { image-rendering: auto !important; }
 .pl-ver.dev { color: var(--txt-3, #9aa3c0); background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.16); }
 .pl-ver.update { color: #fde68a; background: rgba(251, 191, 36, 0.2); border-color: rgba(251, 191, 36, 0.6); animation: pl-blink 1.6s infinite; cursor: pointer; }
 .pl-brand .pl-ver { margin-left: 6px; }
+
+/* ---------------------------------------------------------------- combat en duo (2 contre 2) */
+.pl-battle.doubles .binfo { width: 250px; padding: 8px 12px; }
+.pl-battle.doubles .binfo .nm { font-size: 15px; }
+.pl-battle.doubles .binfo .hpbar { margin-top: 6px; }
+.pl-battle.doubles .binfo .num { margin-top: 2px; font-size: 12.5px; line-height: 15px; }
+.pl-battle.doubles .binfo .balls { display: none; }
+.binfo.foe0 { left: 20px; top: 16px; } .binfo.foe1 { left: 20px; top: 88px; }
+.binfo.ally0 { left: 498px; top: 236px; } .binfo.ally1 { left: 498px; top: 312px; }
+.pl-battle.doubles .bprompt { top: 392px; }
+.bcards.targets { grid-template-columns: repeat(3, 1fr); }
+.bcard.target .tag { position: static; margin-top: 4px; }
+.bcard.target.ally .tag { background: rgba(167, 139, 250, 0.35); }

@@ -291,12 +291,7 @@ export class PokeLinkApp {
   startFlow(kind, peer, rid) {
     if (kind === 'trade') return this.openTrade(peer, rid);
     if (kind === 'battle') return this.openBattle(peer, rid);
-    if (kind === 'duo') {
-      this.duo.add(peer.id);
-      this.duoChip.style.display = ''; this.duoChip.innerHTML = icon('users', 14) + ` Duo avec ${peer.profile.name}`;
-      this.game.setPartner?.(peer);
-      this.ui.toasts.show({ ic: 'users', accent: 'var(--c-duo)', title: `Duo activé avec ${peer.profile.name}`, sub: 'Vos combats se jouent à 2 contre 2' });
-    }
+    if (kind === 'duo') return this.openBattle(peer, rid, { doubles: true });
   }
   openTrade(peer, rid) {
     const panel = new TradePanel(this.ui, {
@@ -363,13 +358,18 @@ export class PokeLinkApp {
     if (this.game.readPartyRaw) this.me.team = decodeParty(this.game.readPartyRaw(), this.gd);
     this.net.send('profile', { profile: this.me.profile, team: this.teamSummary() });
   }
-  /** Combat 3 contre 3 : les 3 premiers Pokémon de chaque équipe, simulés par le serveur. */
-  async openBattle(peer, rid) {
-    const mine = this.me.team.slice(0, 3), theirs = (peer.team || []).slice(0, 3);
-    const vs = new VersusCard(this.ui, { me: this.me.profile, peer: peer.profile, myTeam: mine, theirTeam: theirs, rules: ['3 contre 3', 'K.O. = perdu (Nuzlocke)', 'Simple'] });
+  /** Combat 3 contre 3 (simple) ou 4 contre 4 avec deux Pokémon sur le terrain (duo), simulé dans le navigateur. */
+  async openBattle(peer, rid, { doubles = false } = {}) {
+    const n = doubles ? 4 : 3, mine = this.me.team.slice(0, n), theirs = (peer.team || []).slice(0, n);
+    if (doubles && (mine.length < 2 || theirs.length < 2)) {
+      this.ui.toasts.show({ ic: 'circle-alert', accent: 'var(--c-duo)', title: 'Combat en duo impossible', sub: 'Il faut au moins 2 Pokémon dans chaque équipe', dur: 3200 });
+      return;
+    }
+    const vs = new VersusCard(this.ui, { me: this.me.profile, peer: peer.profile, myTeam: mine, theirTeam: theirs,
+      rules: doubles ? [`${n} contre ${n}`, 'Duo : 2 Pokémon sur le terrain', 'K.O. = perdu (Nuzlocke)'] : ['3 contre 3', 'K.O. = perdu (Nuzlocke)', 'Simple'] });
     this.ui.open(vs);
-    this.battle = { rid, peer, vs, mine, pending: [] };
-    this.net.send('battle-team', { rid, name: this.me.profile.name, team: mine.map(toBattleSet), opponent: peer.id, seed: this.battleSeed });
+    this.battle = { rid, peer, vs, mine, pending: [], doubles };
+    this.net.send('battle-team', { rid, name: this.me.profile.name, team: mine.map(toBattleSet), opponent: peer.id, seed: this.battleSeed, doubles });
     await this.anim.wait(1500);
     vs.ready('Équipes prêtes · le combat commence');
     await this.anim.wait(1100);
@@ -388,7 +388,7 @@ export class PokeLinkApp {
     for (const m of b.pending.splice(0)) {
       if (m.ev === 'start') {
         b.vs.close();
-        b.view = new BattleView(this.ui, { gd: this.gd, side: m.side, names: m.names, me: this.me.profile, peer: b.peer.profile, myTeam: b.mine,
+        b.view = new BattleView(this.ui, { gd: this.gd, side: m.side, names: m.names, me: this.me.profile, peer: b.peer.profile, myTeam: b.mine, doubles: !!m.doubles,
           onChoice: choice => this.net.send('battle-choice', { rid: b.rid, choice }) });
         b.view.onEnd = end => this.applyBattleResult(end);
         this.ui.open(b.view);
@@ -617,8 +617,9 @@ export class PokeLinkApp {
     if (!a || base !== this.game.playerBase) return false;
     const pal = this.lib.avatarPalette(base, this.me.profile.colors || {});
     let ok = this.game.patchRom(a.paletteRomOffset, pal, writePalette);
-    // à vélo, en surf, à la pêche… et de dos en combat
-    for (const t of this.assets.skins?.[base] || []) ok = this.game.patchRom(t.offset, skinPalette(t, a.palette, pal), writePalette) && ok;
+    // à vélo, en surf, à la pêche…
+    // (sprites de terrain seulement : de dos en combat, le rendu n'était pas beau)
+    for (const t of this.assets.skins?.[base] || []) if (t.exact) ok = this.game.patchRom(t.offset, skinPalette(t, a.palette, pal), writePalette) && ok;
     return ok;
   }
 
