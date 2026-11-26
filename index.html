@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>PokéLink</title>
+  <link rel="stylesheet" href="css/pokelink.css">
+  <link rel="stylesheet" href="css/atelier.css">
+  <link rel="stylesheet" href="css/play.css">
+  <style>
+    .hm-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .hm-card { display: flex; flex-direction: column; gap: 12px; min-height: 248px; padding: 24px; border-radius: var(--r-xl); text-decoration: none; color: var(--txt); transition: transform 0.15s; }
+    .hm-card:hover { transform: translateY(-2px); }
+    .hm-ic { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(135deg, var(--brand-a), var(--brand-b)); box-shadow: 0 8px 22px rgba(124, 92, 255, 0.4); }
+    .hm-ic.alt { background: linear-gradient(135deg, #14b8a6, #22d3ee); box-shadow: 0 8px 22px rgba(20, 184, 166, 0.35); }
+    .hm-card h2 { margin: 8px 0 0; font-size: 22px; letter-spacing: -0.02em; }
+    .hm-card p { margin: 0; color: var(--txt-2); font-size: 14px; line-height: 20px; flex: 1; }
+    .hm-go { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; color: #c4b5fd; }
+    .hm-go span { display: grid; }
+    .hm-join { margin-top: 16px; display: flex; align-items: center; gap: 12px; padding: 16px 16px 16px 24px; border-radius: var(--r-xl); }
+    .hm-join b { flex: 1; font-size: 15px; }
+    .hm-join .at-input { flex: 0 0 200px; height: 40px; }
+    .hm-list { margin: 28px 0 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .hm-list div { font-size: 13px; color: var(--txt-3); line-height: 18px; }
+    .hm-list b { display: block; color: var(--txt); font-size: 14px; margin-bottom: 4px; }
+    @media (max-width: 760px) { .hm-cards, .hm-list { grid-template-columns: 1fr; } .hm-join { flex-wrap: wrap; } .hm-join .at-input { flex: 1 1 100%; } }
+  </style>
+</head>
+<body class="at-body">
+  <div class="pl-setup">
+    <header class="at-head"><a class="at-brand" href="index.html"><span class="at-logo" id="logo"></span><b>PokéLink</b><span>Aventures Pokémon entre amis</span></a></header>
+    <div class="pl-hero">
+      <h1>Chacun sa partie. Tous ensemble.</h1>
+      <p>Charge ta ROM, rejoins la room de tes amis et voyez-vous dans le monde du jeu, en temps réel.</p>
+    </div>
+    <div class="hm-cards">
+      <a class="hm-card glass" href="play.html" id="playLink">
+        <span class="hm-ic" id="ic1"></span>
+        <h2>Jouer</h2>
+        <p>Ta ROM et ta sauvegarde restent sur ton ordinateur. Échanges, combats, Pokémon qui suit, couleurs du personnage : tout se fait sans quitter le jeu.</p>
+        <span class="hm-go" id="go1">Lancer une partie</span>
+      </a>
+      <a class="hm-card glass" href="atelier.html" id="atelierLink">
+        <span class="hm-ic alt" id="ic2"></span>
+        <h2>Atelier ROM</h2>
+        <p>L’Universal Pokémon Randomizer, en français et en un clic. Formules Nuzlocke, Duo et Chaos, random map, graine partagée pour vivre la même aventure.</p>
+        <span class="hm-go" id="go2">Préparer une run</span>
+      </a>
+    </div>
+    <div class="hm-join glass">
+      <b>Un ami t’a donné un code ?</b>
+      <input class="at-input mono" id="code" placeholder="Code de room" maxlength="200" aria-label="Code de room" autocomplete="off" spellcheck="false">
+      <button class="at-btn primary" id="join">Rejoindre</button>
+    </div>
+    <div class="hm-list">
+      <div><b>Gen 1 à 5</b>Rouge, Or, Émeraude, Platine, HeartGold, Noir 2… se lancent dans le navigateur. Testé et fonctionnel pour l’instant : Platine.</div>
+      <div><b>3 à 8 joueurs</b>Une room, un code, et chacun garde sa propre aventure.</div>
+      <div><b>Aucun serveur</b>Les joueurs se connectent directement entre eux ; ROMs et sauvegardes restent chez chacun.</div>
+    </div>
+  </div>
+  <script type="module">
+    import { icon } from './js/icons.js';
+    import { mountInfoTab } from './js/info-tab.js';
+    mountInfoTab(document.querySelector('.at-head'));
+    import { mountVersion } from './js/version-badge.js';
+    mountVersion(document.querySelector('.at-head'), document.querySelector('.at-head .at-brand'));
+    document.getElementById('logo').innerHTML = icon('link-2', 18);
+    document.getElementById('ic1').innerHTML = icon('gamepad-2', 24);
+    document.getElementById('ic2').innerHTML = icon('wand-sparkles', 24);
+    for (const id of ['go1', 'go2']) document.getElementById(id).insertAdjacentHTML('beforeend', `<span>${icon('chevron-right', 16)}</span>`);
+    const code = document.getElementById('code');
+    const go = () => { const v = code.value.trim(), m = v.match(/[?&]room=([A-Za-z0-9]+)/); const c = (m ? m[1] : v).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); if (c) location.href = `play.html?room=${c}`; };
+    document.getElementById('join').onclick = go;
+    code.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  </script>
+</body>
+</html>
