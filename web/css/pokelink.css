@@ -416,3 +416,29 @@ kbd, .kc { flex: none; font: 700 11px/1 var(--font); min-width: 20px; height: 20
 .pl-savemenu .opt.quit .ic { background: rgba(251, 146, 60, 0.22); color: #fdba74; }
 .pl-savemenu b { display: block; font-size: 14px; }
 .pl-savemenu small { display: block; font-size: 12px; color: var(--txt-2); line-height: 16px; }
+.pl-game.pl-overpeer { cursor: pointer; }
+.pl-player.pl-click { transition: background 0.15s, box-shadow 0.15s; }
+.pl-player.pl-click:hover { background: rgba(255, 255, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+.pl-tag { pointer-events: auto; cursor: pointer; }
+.pl-savemenu .opt.nosave .ic { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+.pl-savemenu .opt.nosave { margin-top: 2px; border-top: 1px solid var(--line); border-radius: 0 0 var(--r-md) var(--r-md); }
+.pl-savemenu .opt.nosave.armed { background: rgba(239, 68, 68, 0.28); }
+.pl-savemenu .opt.nosave.armed b { color: #fecaca; }
+/* écrans filtrés (WebGL) : par-dessus les écrans d'origine, qui gardent la souris */
+canvas.pl-screen { pointer-events: none; }
+.pl-bottom { position: relative; }
+.pl-bottom canvas.pl-screen { position: absolute; left: 15px; top: 15px; }
+.pl-filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pl-filter { padding: 10px; border-radius: var(--r-md); border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; gap: 4px; }
+.pl-filter:hover { background: rgba(255, 255, 255, 0.1); }
+.pl-filter.on { border-color: #c4b5fd; background: rgba(124, 92, 255, 0.22); box-shadow: inset 0 0 0 1px #c4b5fd; }
+.pl-filter b { font-size: 13px; }
+.pl-filter small { font-size: 11.5px; line-height: 14px; color: var(--txt-2); }
+.pl-filter .pv { height: 52px; margin-bottom: 4px; border-radius: 8px; background-color: #1c2340; position: relative; overflow: hidden; }
+.pl-filter .pv::after { content: ''; position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; background: #f87171; }
+.pl-filter .pv.net::after { clip-path: polygon(33% 0, 66% 0, 66% 33%, 100% 33%, 100% 66%, 66% 66%, 66% 100%, 33% 100%, 33% 66%, 0 66%, 0 33%, 33% 33%); }
+.pl-filter .pv.hq::after { border-radius: 30%; clip-path: polygon(33% 0, 66% 0, 100% 33%, 100% 66%, 66% 100%, 33% 100%, 0 66%, 0 33%); }
+.pl-filter .pv.lisse::after { clip-path: polygon(33% 0, 66% 0, 66% 33%, 100% 33%, 100% 66%, 66% 66%, 66% 100%, 33% 100%, 33% 66%, 0 66%, 0 33%, 33% 33%); filter: blur(3px); }
+.pl-filter .pv.lcd { background-image: linear-gradient(rgba(0, 0, 0, 0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.35) 1px, transparent 1px); background-size: 5px 5px; }
+.pl-filter .pv.lcd::after { clip-path: polygon(33% 0, 66% 0, 66% 33%, 100% 33%, 100% 66%, 66% 66%, 66% 100%, 33% 100%, 33% 66%, 0 66%, 0 33%, 33% 33%); opacity: 0.85; }
+.pl-tabs > span { white-space: nowrap; }

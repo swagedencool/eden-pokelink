@@ -42,9 +42,13 @@ Trois pages :
 | **Âmes liées** : Pokémon rencontrés au même endroit liés entre amis ; un K.O. emporte les autres, qui restent K.O. (même après un Centre Pokémon) | ✅ |
 | **Plafond de niveau** : automatique (prochain champion, lu dans ta ROM, donc randomisée) ou fixe ; plus d'EXP en combat ni à la Pension, Super Bonbon sans effet | ✅ vérifié dans le jeu |
 | Les deux règles s'activent et se coupent à tout moment, par n'importe quel joueur (touche R), et sont transmises aux arrivants | ✅ |
-| Bouton **Sauvegarder** (télécharge ton `.sav`) et **Sauvegarder et quitter** ; sauvegarde aussi gardée dans le navigateur toutes les 30 s | ✅ vérifié |
+| Bouton **Sauvegarder** (télécharge ton `.sav`), **Sauvegarder et quitter**, **Quitter sans sauvegarder** ; sauvegarde aussi gardée dans le navigateur toutes les 30 s | ✅ vérifié |
 | **Écran tactile** : la souris sert de stylet sur l'écran du bas (tutoriel, Pokétch…) | ✅ vérifié |
-| **Réglages** en jeu : toutes les touches modifiables, volume, accélération ×1,5 à ×4 | ✅ vérifié |
+| **Réglages** en jeu : toutes les touches modifiables, volume, accélération ×1,5 à ×4 (vraie vitesse, son coupé par défaut) | ✅ vérifié |
+| **Image** : filtres Pixels nets, Contours HD (Scale3x), Lissé, Écran LCD ; mode économie | ✅ vérifié |
+| Le jeu **continue en arrière-plan** (autre fenêtre devant, onglet caché) | ✅ vérifié |
+| Cliquer sur un ami (dans le jeu, son nom, ou la liste « Dans la room ») ouvre son menu, où qu'il soit | ✅ |
+| Échanges fiabilisés : état renvoyé chaque seconde, messages en avance gardés, annulation gérée | ✅ |
 | **Inviter un ami** : lien de la room à copier ou partager | ✅ |
 | Tout se fait **à la souris** : menus, échanges, combats, profil, règles (le clavier marche toujours) | ✅ |
 | Audit automatique de l'interface (débordements, centrage, marges, texte coupé) | ✅ 0 problème |
