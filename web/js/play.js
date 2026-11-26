@@ -126,7 +126,7 @@ async function start() {
     loading();
     host.setVolume(settings.effectiveVolume);
     setup.hidden = true;
-    autoBackup(host, r.key);
+    S.checkSave = autoBackup(host, r.key);
     if (LIVE[r.info.code]) startLive(host, net, joined, save);
     else startSimple(host, net, joined);
   } catch (e) { loading(); alertBox(e.message || String(e)); }
@@ -149,17 +149,22 @@ async function saveGame(host, quit, trainer = S.name) {
 
 /** Sauvegarde gardée dans le navigateur toutes les 30 s (et en quittant la page). */
 function autoBackup(host, key) {
-  let last = '';
+  let last = null;
+  // empreinte de TOUT le fichier : le jeu écrit tantôt dans la 1re copie, tantôt dans la 2de (0x40000)
+  const sigOf = s0 => { const s = s0.byteOffset & 3 ? s0.slice() : s0; const w = new Uint32Array(s.buffer, s.byteOffset, s.byteLength >> 2); let h = 0x811c9dc5 ^ s.length; for (let i = 0; i < w.length; i++) h = Math.imul(h ^ w[i], 16777619); return h >>> 0; };
   const keep = () => {
     const s = host.exportSave();
     if (!s || !s.length) return;
-    const sig = s.length + ':' + s.subarray(0, 4096).reduce((a, v, i) => (a + v * (i + 1)) | 0, 0) + ':' + s.subarray(-4096).reduce((a, v, i) => (a + v * (i + 7)) | 0, 0);
+    const sig = sigOf(s);
     if (sig === last) return;
+    if (last !== null) S.gameSavedAt = Date.now();      // le joueur vient de sauvegarder dans le jeu
     last = sig;
     saveRom('save:' + key, { bytes: s, at: Date.now() }).catch(() => {});
   };
-  setInterval(keep, 30000);
+  setTimeout(keep, 4000);
+  setInterval(keep, 8000);
   window.addEventListener('pagehide', keep);
+  return keep;
 }
 
 /** Jeu dont la mémoire est connue : toute l'interface PokéLink (amis dans le monde, échanges, combats…). */
@@ -187,6 +192,8 @@ function startLive(host, net, joined, save) {
   window.PL = { app, host, game };
   app.onSave = quit => saveGame(host, quit, trainer);
   app.onQuit = () => { S.leaving = true; location.href = 'index.html'; };
+  app.savedAt = () => S.gameSavedAt || null;
+  app.checkSave = () => S.checkSave?.();
   // quitter par erreur (fermer l'onglet, recharger) : le navigateur demande confirmation
   addEventListener('beforeunload', e => { if (!S.leaving) { e.preventDefault(); e.returnValue = ''; } });
   const fit = () => { const k = Math.min(innerWidth / 1280, innerHeight / 720); root.style.transform = `scale(${k})`; };

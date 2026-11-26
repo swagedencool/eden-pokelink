@@ -117,7 +117,7 @@ export class EmuHost {
         const GM = window.EJS_GameManager?.prototype;
         if (GM && !GM._plCfg) {
           const orig = GM.getRetroArchCfg; GM._plCfg = true;
-          GM.getRetroArchCfg = function () { return orig.call(this).replace(/audio_latency = \d+/, 'audio_latency = 128') + 'audio_sync = true\naudio_rate_control = true\naudio_rate_control_delta = 0.005\n' + 'video_font_enable = false\nmenu_enable_widgets = false\nnotification_show_fast_forward = false\nnotification_show_autoconfig = false\nnotification_show_remap_load = false\nnotification_show_config_override_load = false\nnotification_show_save_state = false\n'; };
+          GM.getRetroArchCfg = function () { return orig.call(this).replace(/audio_latency = \d+/, 'audio_latency = 128') + 'audio_rate_control = true\naudio_rate_control_delta = 0.005\naudio_fastforward_mute = true\nfastforward_frameskip = true\n' + 'video_font_enable = false\nmenu_enable_widgets = false\nnotification_show_fast_forward = false\nnotification_show_autoconfig = false\nnotification_show_remap_load = false\nnotification_show_config_override_load = false\nnotification_show_save_state = false\n'; };
         }
         e.on('saveDatabaseLoaded', FS => {
           const dir = `/data/saves/${SAVE_DIR[this.core]}`;
@@ -163,7 +163,20 @@ export class EmuHost {
     try { e.Module?.AL?.currentCtx?.sources?.forEach(src => (src.gain.gain.value = v)); } catch {}
   }
   /** Vitesse du jeu : 1 = normale, 2 = deux fois plus vite… (plusieurs images du jeu par image affichée). */
-  setSpeed(x) { this.speed = x > 1 ? x : 1; setEmuSpeed(this.speed); }
+  setSpeed(x) {
+    this.speed = x > 1 ? x : 1;
+    // Avance rapide de RetroArch, limitée à la vitesse choisie : RetroArch ne dépend alors plus de l'affichage
+    // (ni de la synchro audio) et calcule autant d'images que demandé, dans la limite de la puissance du PC.
+    // En accéléré, le cœur ne dessine qu'une image sur N : c'est le calcul du jeu qui compte.
+    setEmuSpeed(1);
+    try {
+      const f = this.gm.functions;
+      if (this.speed > 1) { f.setFastForwardRatio(this.speed); f.toggleFastForward(1); this.ejs.isFastForward = true; }
+      else { f.toggleFastForward(0); this.ejs.isFastForward = false; }
+    } catch {}
+    this.setCoreOption('desmume_frameskip', this.speed > 1 ? Math.ceil(this.speed) - 1 : (this.options?.frameskip || 0));
+  }
+
   /** Sauvegarde du jeu en .sav brut (lisible par tous les émulateurs et linkers). */
   exportSave() { const s = this.gm.getSaveFile(); return s ? rawSave(s) : null; }
 }

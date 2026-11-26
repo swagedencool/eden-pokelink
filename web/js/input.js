@@ -22,6 +22,7 @@ export class InputRouter extends Emitter {
     this.facing = () => 1;
     this.speed = () => 1;      // vitesse du jeu : un demi-tour dure 4 images du jeu, quel que soit le turbo
     this.capture = null;
+    this.auto = null;          // touches tenues par la marche à la souris
     target.addEventListener('keydown', e => this.down(e), true);
     target.addEventListener('keyup', e => this.up(e));
   }
@@ -49,6 +50,7 @@ export class InputRouter extends Emitter {
       this.emit('a-press');
       if (this._consumeA) { this._consumeA = false; return; }
     }
+    if (k in DIR_OF && this.auto) { this.auto = null; this.emit('manual'); }   // le clavier reprend la main
     if (k in DIR_OF && this.isBlocked(DIR_OF[k])) {
       this.blocked.add(k);
       if (this.facing() !== DIR_OF[k]) this.taps.set(k, this.turnTap());
@@ -70,6 +72,7 @@ export class InputRouter extends Emitter {
   /** Touches à envoyer à l'émulateur pour cette frame. */
   frameKeys() {
     const out = new Set(this.uiActive() ? [] : this.held);
+    if (this.auto && !this.uiActive()) for (const k of this.auto) out.add(k);   // marche à la souris
     for (const [k, n] of this.taps) { out.add(k); if (n <= 1) this.taps.delete(k); else this.taps.set(k, n - 1); }
     // une direction retenue se libère si l'ami s'est écarté
     for (const k of this.blocked) if (!this.isBlocked(DIR_OF[k])) { this.blocked.delete(k); this.held.add(k); }

@@ -189,7 +189,58 @@ export function loadAssets(rom, iconPalettes) {
     }
     return iconCache.get(species);
   };
-  return { avatars, pokemon, icon };
+  return { avatars, pokemon, icon, skins: skinTargets(rom, narc, avatars) };
+}
+
+/**
+ * Toutes les palettes du joueur à recolorer pour que sa tenue se voie partout : à pied (sprite de base),
+ * à vélo, en surf, à la pêche… (autres sprites de mmodel.narc qui reprennent ses couleurs) et de dos en combat
+ * (poketool/trgra/trbgra.narc). Chaque couleur de ces palettes est rattachée à une couleur du sprite de base.
+ */
+function skinTargets(rom, narc, avatars) {
+  const ref = { lucas: avatars.lucas.palette, aurore: avatars.aurore.palette };
+  const slots = b => new Set(COLOR_SLOTS[b].flatMap(s => s.idx));
+  const same = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+  const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+  const out = { lucas: [], aurore: [] };
+  // sprites de terrain : mêmes couleurs exactes, dans un autre ordre
+  for (let m = 92; m <= 420; m++) {
+    if (m === MMODEL.avatars.lucas || m === MMODEL.avatars.aurore || (m > 93 && m < 155) || (m > 168 && m < 363)) continue;
+    let btx; try { btx = parseBtx0(narc.member(m)); } catch { continue; }
+    const pal = btx.palettes[0]?.colors; if (!pal) continue;
+    const n = b => pal.slice(1).filter(c => ref[b].slice(1).some(r => same(r, c))).length;
+    const nl = n('lucas'), na = n('aurore'), base = nl >= 13 && nl > na ? 'lucas' : na >= 13 && na > nl ? 'aurore' : null;
+    if (!base) continue;
+    const map = [], S = slots(base);
+    for (let i = 1; i < 16; i++) { const j = ref[base].findIndex((r, k) => S.has(k) && same(r, pal[i])); if (j > 0) map.push([i, j]); }
+    if (map.length) out[base].push({ offset: narc.memberOffset(m) + btx.palettes[0].offset, palette: pal, map, exact: true });
+  }
+  // dos du joueur en combat : couleurs très proches (mêmes teintes, nuances parfois différentes)
+  try {
+    const f = rom.fileByPath('poketool/trgra/trbgra.narc'), tb = parseNarc(f.data, f.offset);
+    for (const [base, member] of [['lucas', 1], ['aurore', 6]]) {
+      const b = tb.member(member), pal = parseNclr(b)[0], S = slots(base);
+      const p = u16(b, 12), off = tb.memberOffset(member) + p + 8 + u32(b, p + 0x14);
+      const map = [];
+      for (let i = 1; i < 16; i++) {
+        let best = -1, bd = 41;
+        ref[base].forEach((r, k) => { if (S.has(k) && dist(r, pal[i]) < bd) { bd = dist(r, pal[i]); best = k; } });
+        if (best > 0) map.push([i, best]);
+      }
+      if (map.length) out[base].push({ offset: off, palette: pal, map, exact: false });
+    }
+  } catch {}
+  return out;
+}
+
+/** Palette d'un sprite secondaire, recolorée d'après la palette de base recolorée (newBase). */
+export function skinPalette(target, refBase, newBase) {
+  const pal = target.palette.map(c => c.slice());
+  for (const [i, j] of target.map) {
+    const n = newBase[j], o = refBase[j], c = target.palette[i];
+    pal[i] = target.exact ? n.slice() : n.map((v, k) => Math.max(0, Math.min(255, v + c[k] - o[k])));
+  }
+  return pal;
 }
 
 /** Écrit une palette (16 couleurs RGB) dans la ROM en mémoire : le jeu la relit au prochain chargement de zone. */

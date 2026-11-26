@@ -123,6 +123,14 @@ export class PlatinumGame {
   }
 
   // ---------------------------------------------------------------------------------------- dresseur et règles
+  /** Genre du personnage dans la partie (0 = Lucas, 1 = Aurore) : le jeu le relit en changeant de zone. */
+  gender() { const sb = this.attach() && this.saveBase(); return sb ? this.u8(sb + this.profile.trainer + 0x18) : null; }
+  setGender(g) {
+    const sb = this.attach() && this.saveBase(); if (!sb) return false;
+    this.host.heap[this.base + ((sb + this.profile.trainer + 0x18 - RAM) & 0x3fffff)] = g ? 1 : 0;
+    this.playerBase = g ? 'aurore' : 'lucas';
+    return true;
+  }
   badges() { const sb = this.attach() && this.saveBase(); return sb ? this.u8(sb + this.profile.trainer + 0x1a) : 0; }
   storyCleared() { const sb = this.attach() && this.saveBase(); return sb ? !!(this.u8(sb + this.profile.trainer + 0x1d) & 1) : false; }
   /** Plafond de niveau (null = aucun). Réécrit à chaque image : le code de combat n'est en mémoire que pendant les combats. */
