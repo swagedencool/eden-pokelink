@@ -44,8 +44,8 @@ export function namesFor(T, teams) {
 
 export class Battle {
   /** players : [{ id, name, team }] (2 joueurs) · send(id, message) */
-  constructor(sim, { id, players, send, seed, onEnd }) {
-    Object.assign(this, { id, players, send, onEnd, ended: false, last: { p1: {}, p2: {} } });
+  constructor(sim, { id, players, send, seed, onEnd, doubles = false }) {
+    Object.assign(this, { id, players, send, onEnd, doubles, ended: false, last: { p1: {}, p2: {} } });
     const T = makeTables(sim);
     this.sides = { [players[0].id]: 'p1', [players[1].id]: 'p2' };
     const teams = players.map(p => p.team);
@@ -54,10 +54,11 @@ export class Battle {
     this.ps = sim.BattleStreams.getPlayerStreams(stream);
     for (const [i, p] of players.entries()) {
       const side = i ? 'p2' : 'p1';
-      send(p.id, { t: 'battle', rid: id, ev: 'start', side, names, opponent: players[1 - i].id });
+      send(p.id, { t: 'battle', rid: id, ev: 'start', side, names, opponent: players[1 - i].id, doubles });
       this.pump(p.id, side);
     }
-    const spec = { formatid: 'gen4customgame' };
+    // combat en duo : deux Pokémon de chaque côté sur le terrain (combat double de la 4G)
+    const spec = { formatid: doubles ? 'gen4doublescustomgame' : 'gen4customgame' };
     if (seed) spec.seed = seed;
     const pack = t => JSON.stringify(sim.Teams.pack(t.map(s => toShowdown(T, s))));
     this.ps.omniscient.write(`>start ${JSON.stringify(spec)}\n>player p1 {"name":${JSON.stringify(players[0].name)},"team":${pack(teams[0])}}\n>player p2 {"name":${JSON.stringify(players[1].name)},"team":${pack(teams[1])}}`);
@@ -98,7 +99,8 @@ export class Battle {
   choose(pid, choice) {
     const side = this.sides[pid];
     if (!side || this.ended) return;
-    if (!/^(move [1-4]|switch [1-6]|forfeit|default)$/.test(choice)) return;
+    const one = '(move [1-4]( -?[12])?|switch [1-6]|pass|default)';
+    if (choice !== 'forfeit' && !new RegExp(`^${one}(, ${one})?$`).test(choice)) return;
     try {
       if (choice === 'forfeit') this.ps.omniscient.write(`>forcelose ${side}`);
       else this.ps[side].write(choice);

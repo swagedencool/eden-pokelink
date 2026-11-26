@@ -49,10 +49,12 @@ Trois pages :
 | Le jeu **continue en arrière-plan** (autre fenêtre devant, onglet caché) | ✅ vérifié |
 | Cliquer sur un ami (dans le jeu, son nom, ou la liste « Dans la room ») ouvre son menu, où qu'il soit | ✅ |
 | Échanges fiabilisés : état renvoyé chaque seconde, messages en avance gardés, annulation gérée | ✅ |
+| **Combat en duo** : 4 contre 4, deux Pokémon de chaque côté sur le terrain, choix de la cible | ✅ |
+| Image nette sur les écrans zoomés (Windows 125 %, 150 %…) : l'émulateur dessine toujours en 256 × 384 | ✅ |
 | **Équipe d'un ami** en un coup d'œil : sprites, niveaux, types, PV, objet, talent, attaques | ✅ |
 | **Badge d'activité** au-dessus d'un ami et dans la liste : en combat, en échange, occupé | ✅ |
 | **Souris sur l'écran du haut** : clic pour marcher jusqu'à une case, parler en butant sur quelqu'un, avancer les dialogues ; clic droit = B | ✅ |
-| **Lucas ↔ Aurore** dans sa propre partie ; tenue visible à pied, à vélo, en surf et de dos en combat | ✅ |
+| **Lucas ↔ Aurore** dans sa propre partie ; tenue visible à pied, à vélo, en surf | ✅ |
 | Export de la sauvegarde guidé : **sauvegarder d'abord dans le jeu**, heure de la dernière sauvegarde affichée | ✅ |
 | **Inviter un ami** : lien de la room à copier ou partager | ✅ |
 | Tout se fait **à la souris** : menus, échanges, combats, profil, règles (le clavier marche toujours) | ✅ |

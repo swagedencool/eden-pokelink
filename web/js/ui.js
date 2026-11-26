@@ -11,7 +11,7 @@ import { TYPE_COLORS } from './gamedata.js';
 const KIND = {
   battle: { label: 'Combattre', sub: 'Défier en combat', accent: 'var(--c-battle)', icon: 'swords' },
   trade: { label: 'Échanger', sub: 'Proposer un échange', accent: 'var(--c-trade)', icon: 'arrow-left-right' },
-  duo: { label: 'Faire équipe', sub: 'Combats en duo, 2 contre 2', accent: 'var(--c-duo)', icon: 'users' },
+  duo: { label: 'Combat en duo', sub: '2 Pokémon chacun sur le terrain', accent: 'var(--c-duo)', icon: 'users' },
   team: { label: 'Voir son équipe', sub: 'Pokémon et niveaux', accent: 'var(--c-team)', icon: 'eye' },
   react: { label: 'Réagir', sub: 'Envoyer une émote', accent: 'var(--c-react)', icon: 'smile' },
 };
@@ -100,9 +100,9 @@ export class InteractionMenu extends Panel {
 
 // ---------------------------------------------------------------------------------------------
 const TITLES = {
-  out: { battle: 'Défi envoyé', trade: "Demande d'échange envoyée", duo: 'Demande de duo envoyée' },
-  in: { battle: n => `${n} te défie en combat !`, trade: n => `${n} te propose un échange`, duo: n => `${n} veut faire équipe` },
-  chips: { battle: ['3 contre 3', 'Règles de la room'], trade: ['Échange direct', 'Sauvegarde conseillée après'], duo: ['Combats 2 contre 2', 'Pokémon de chacun'] },
+  out: { battle: 'Défi envoyé', trade: "Demande d'échange envoyée", duo: 'Défi en duo envoyé' },
+  in: { battle: n => `${n} te défie en combat !`, trade: n => `${n} te propose un échange`, duo: n => `${n} te défie en duo (2 contre 2) !` },
+  chips: { battle: ['3 contre 3', 'Règles de la room'], trade: ['Échange direct', 'Sauvegarde conseillée après'], duo: ['4 contre 4', '2 sur le terrain'] },
 };
 export class RequestCard extends Panel {
   constructor(ui, { dir, kind, peer, timeout = 30000, onAccept, onDecline, onCancel }) {
@@ -131,7 +131,7 @@ export class RequestCard extends Panel {
   resolve(accepted) {
     this.settled = true;
     this.title.replaceChildren(accepted ? h('span', { style: { display: 'inline-flex', gap: '8px', alignItems: 'center' } }, h('span.pl-check', { html: icon('check', 14) }), `${this.peer.profile.name} a accepté !`) : `${this.peer.profile.name} a refusé`);
-    this.sub.textContent = accepted ? ({ trade: "Ouverture de la fenêtre d'échange…", battle: 'Préparation du combat…', duo: 'Duo activé' })[this.kind] : 'Une autre fois peut-être !';
+    this.sub.textContent = accepted ? ({ trade: "Ouverture de la fenêtre d'échange…", battle: 'Préparation du combat…', duo: 'Préparation du combat en duo…' })[this.kind] : 'Une autre fois peut-être !';
     this.ringArc.setAttribute('stroke-dashoffset', '0');
     this.acts.style.display = 'none';
   }
@@ -328,7 +328,7 @@ export class ProfilePanel extends Panel {
     const buddyRow = h('div.pl-row', {}, h('label', {}, 'Pokémon compagnon'), buddies);
     const el = h('div.pl-profile.glass', {},
       h('div.pl-preview', {}, h('div.floor'), cv, nm, h('small', {}, 'Ce que tes amis voient en jeu'),
-        h('div.foot', {}, h('div.pl-note', { html: icon('sparkles', 14) + '<span>Tes amis te voient tout de suite. Dans ton jeu (à pied, à vélo, en combat) : dès que tu passes une porte. Lucas/Aurore change aussi ton personnage dans la partie.</span>' }), acts)),
+        h('div.foot', {}, h('div.pl-note', { html: icon('sparkles', 14) + '<span>Tes amis te voient tout de suite. Dans ton jeu (à pied, à vélo, en surf) : dès que tu passes une porte. Lucas/Aurore change aussi ton personnage dans la partie.</span>' }), acts)),
       h('div.pl-form', {},
         h('h3', { html: icon('palette', 20) + ' Mon personnage' }),
         h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 172px', gap: '4px' } }, nameRow, baseRow),

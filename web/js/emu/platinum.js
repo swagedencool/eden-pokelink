@@ -65,6 +65,7 @@ export class PlatinumGame {
     const half = c.height / 2;
     // l'écran du haut suit la résolution de l'émulateur (3D HD : 512 × 384 et plus)
     if (this.topCanvas.width !== c.width || this.topCanvas.height !== half) { this.topCanvas.width = c.width; this.topCanvas.height = half; this.topCtx.imageSmoothingEnabled = false; }
+    this.topCtx.imageSmoothingEnabled = false; this.botCtx.imageSmoothingEnabled = false;
     this.topCtx.drawImage(c, 0, 0, c.width, half, 0, 0, c.width, half);
     this.botCtx.drawImage(c, 0, half, c.width, half, 0, 0, 256, 192);
     if (this.frameN++ % 3 === 0) this.probe();
