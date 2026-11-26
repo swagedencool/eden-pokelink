@@ -19,7 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # tags, pour le numéro de version
       - name: Construire le site
+        env:
+          SITE_VERSION: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
         run: sh tools/build-site.sh
       - name: Envoyer sur la branche gh-pages
         run: |

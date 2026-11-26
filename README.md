@@ -141,6 +141,8 @@ Entrée = Start, Retour = Select · P = sortir/rentrer son Pokémon · C = profi
 Espace = accélérer · I = inviter un ami. L'écran du bas se touche à la souris, comme un stylet.
 
 Publier une release sur GitHub met le site à jour automatiquement (`.github/workflows/publier-site.yml`).
+Le numéro de version s'affiche en haut de chaque page, à côté du logo : s'il correspond à la release, la mise en ligne
+a réussi. Si une version plus récente est en ligne, la pastille devient jaune et un clic la charge.
 
 ## Remerciements
 

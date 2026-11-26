@@ -63,6 +63,8 @@
     import { icon } from './js/icons.js';
     import { mountInfoTab } from './js/info-tab.js';
     mountInfoTab(document.querySelector('.at-head'));
+    import { mountVersion } from './js/version-badge.js';
+    mountVersion(document.querySelector('.at-head'), document.querySelector('.at-head .at-brand'));
     document.getElementById('logo').innerHTML = icon('link-2', 18);
     document.getElementById('ic1').innerHTML = icon('gamepad-2', 24);
     document.getElementById('ic2').innerHTML = icon('wand-sparkles', 24);

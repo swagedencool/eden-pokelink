@@ -509,3 +509,10 @@ canvas.pl-screen { image-rendering: auto !important; }
 .pl-savestate.no { background: rgba(239, 68, 68, 0.14); color: #fca5a5; }
 .pl-savestate svg { flex: none; }
 .pl-savepanel .foot { display: flex; align-items: center; gap: 8px; }
+
+/* ---------------------------------------------------------------- version du site */
+.pl-ver { flex: none; height: 22px; padding: 0 8px; border-radius: 999px; display: inline-flex; align-items: center; font: 700 11.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.02em; color: #c4b5fd; text-decoration: none; background: rgba(124, 92, 255, 0.16); border: 1px solid rgba(167, 139, 250, 0.4); white-space: nowrap; transition: background 0.15s; }
+.pl-ver:hover { background: rgba(124, 92, 255, 0.3); color: #ede9fe; }
+.pl-ver.dev { color: var(--txt-3, #9aa3c0); background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.16); }
+.pl-ver.update { color: #fde68a; background: rgba(251, 191, 36, 0.2); border-color: rgba(251, 191, 36, 0.6); animation: pl-blink 1.6s infinite; cursor: pointer; }
+.pl-brand .pl-ver { margin-left: 6px; }
