@@ -1,5 +1,13 @@
 # eden-pokelink
 
+<p align="center">
+  <a href="https://swagedencool.github.io/eden-pokelink/"><b>▶ Jouer maintenant : swagedencool.github.io/eden-pokelink</b></a>
+</p>
+
+> **[🎮 Ouvrir le jeu](https://swagedencool.github.io/eden-pokelink/)** · [Jouer](https://swagedencool.github.io/eden-pokelink/play.html) · [Atelier ROM](https://swagedencool.github.io/eden-pokelink/atelier.html)
+>
+> Rien à installer : ça marche dans le navigateur. Pour l'instant, seul **Pokémon Platine** est testé et fonctionnel.
+
 **PokéLink** : des aventures Pokémon entre amis, chacun dans sa propre partie. Pensé pour les randomizers et les
 Nuzlockes à 3–5 joueurs.
 
