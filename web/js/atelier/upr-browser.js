@@ -29,7 +29,7 @@ async function java(args, resultFile) {
   let res;
   try { res = JSON.parse(await (await window.cjFileBlob(resultFile)).text()); } catch { res = null; }
   if (!res) throw new Error(`Le randomizer s’est arrêté (code ${code})`);
-  if (!res.ok) throw new Error(res.error || 'Le randomizer a échoué');
+  if (!res.ok) throw new Error(String(res.error || 'Le randomizer a échoué').replace(/^([\w.$]*(Exception|Error):\s*)+/, ''));
   return res;
 }
 
