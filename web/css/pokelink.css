@@ -319,7 +319,7 @@ kbd, .kc { flex: none; font: 700 11px/1 var(--font); min-width: 20px; height: 20
 .pl-chip.invite { color: #ede9fe; border-color: rgba(167, 139, 250, 0.55); background: linear-gradient(145deg, rgba(124, 92, 255, 0.45), rgba(124, 92, 255, 0.16)); }
 .pl-chip.turbo.on { color: #fde68a; border-color: rgba(251, 191, 36, 0.6); background: linear-gradient(145deg, rgba(251, 191, 36, 0.35), rgba(251, 191, 36, 0.12)); }
 .pl-chip.turbo span:last-child { font-feature-settings: 'tnum'; min-width: 22px; }
-.pl-chip.sound { padding: 0 10px; }
+.pl-chip.sound, .pl-chip.gear { padding: 0 10px; }
 .pl-chip.sound.off { color: #fca5a5; }
 .pl-chip.rules { cursor: pointer; }
 .pl-chip.rules:hover { color: var(--txt); }
