@@ -11,6 +11,7 @@ import { InteractionMenu, RequestCard, TradePanel, VersusCard, ProfilePanel, Rul
 import { settings } from './settings.js';
 import { ScreenFilter } from './emu/screen.js';
 import { skinPalette } from './rom.js';
+import { mountVersion } from './version-badge.js';
 import { RoomRules } from './rules.js';
 import { BattleView } from './battle-ui.js';
 import { decodeParty, toBattleSet, withPartyHP, boxToParty, PARTY } from './pk4.js';
@@ -70,6 +71,7 @@ export class PokeLinkApp {
     this.rules = new RoomRules(this, { bosses });
     this.onRulesChanged();
     this.wireInput();
+    mountVersion(this.brandEl);
     this.wireMouse();
     this.wireNet();
     settings.on('change', () => { this.applySound(); this.applyVideo(); if (this.turboOn) this.host?.setSpeed(settings.state.turboSpeed); this.refreshControls(); });
@@ -126,7 +128,7 @@ export class PokeLinkApp {
     this.stage = h('div.pl-stage', {},
       h('div.pl-ambient', {}, this.ambient), h('div.pl-grain'),
       h('header.pl-header', {},
-        h('div.pl-brand', {}, h('div.logo', { html: icon('link-2', 17) }), 'PokéLink', h('small', {}, 'Platine')),
+        this.brandEl = h('div.pl-brand', {}, h('div.logo', { html: icon('link-2', 17) }), 'PokéLink', h('small', {}, 'Platine')),
         this.roomChip,
         h('span.pl-chip', {}, h('i.pl-dot'), this.countEl, ' joueurs'),
         this.inviteChip, this.duoChip, this.rulesChip, h('span.pl-spacer'),

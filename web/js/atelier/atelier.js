@@ -2,6 +2,7 @@
 import { h } from '../core.js';
 import { icon } from '../icons.js';
 import { mountInfoTab } from '../info-tab.js';
+import { mountVersion } from '../version-badge.js';
 import { P2PRoom } from '../p2p.js';
 import { saveRom } from '../store.js';
 import { NdsRom } from '../rom.js';
@@ -61,6 +62,7 @@ function build() {
     els.modal = h('div.at-modal-slot'),
   );
   mountInfoTab(root.querySelector('.at-head'));
+  mountVersion(root.querySelector('.at-head'), root.querySelector('.at-head .at-brand'));
   renderAll();
 }
 const renderAll = () => { renderRoom(); renderRom(); renderPresets(); renderSeed(); renderNav(); renderBanner(); renderFields(); renderBar(); };

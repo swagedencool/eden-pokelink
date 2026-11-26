@@ -3,6 +3,7 @@
 import { h } from './core.js';
 import { icon } from './icons.js';
 import { mountInfoTab } from './info-tab.js';
+import { mountVersion } from './version-badge.js';
 import { P2PRoom } from './p2p.js';
 import { loadRom, saveRom } from './store.js';
 import { detectRom, sizeLabel } from './atelier/games.js';
@@ -85,6 +86,7 @@ function render() {
     h('div.pl-start', {}, support || h('span'), h('button.at-btn.primary', { disabled: !r, onclick: start }, h('span', { html: icon('play', 18) }), 'Lancer la partie')),
   ));
   mountInfoTab(setup.querySelector('.at-head'));
+  mountVersion(setup.querySelector('.at-head'), setup.querySelector('.at-head .at-brand'));
 }
 function radio(id, ic, title, sub, input) {
   const on = S.saveMode === id;
